@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>7-Day Plan · Crack Rubrik System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light dark;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top,0px);
+    padding-bottom: env(safe-area-inset-bottom,0px);
+
+    --paper:#f6f7fb;
+    --card:#ffffff;
+    --ink:#141c2b;
+    --muted:#65718a;
+    --line:#e6e9f1;
+    --line2:#d7dbe8;
+
+    --indigo:#4f46e5;
+    --indigo-soft:#ecebfd;
+    --indigo-ink:#3730c4;
+
+    --teal:#0d9488;          /* Rubrik-flavored accent */
+    --teal-soft:#dcf5f1;
+    --teal-ink:#0b7167;
+
+    --warn-soft:#fdf0dd;
+    --warn-ink:#9a5b00;
+
+    --shadow:0 1px 2px rgba(20,28,43,.05), 0 10px 26px -14px rgba(20,28,43,.20);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0d1017; --card:#151a24; --ink:#e8ecf4; --muted:#95a2b8;
+      --line:#232a37; --line2:#2f3745;
+      --indigo:#8b84ff; --indigo-soft:#1b1a3a; --indigo-ink:#b3adff;
+      --teal:#2dd4bf; --teal-soft:#0c2a27; --teal-ink:#7fe6d8;
+      --warn-soft:#2a1e0a; --warn-ink:#f2c07a;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.65);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0d1017; --card:#151a24; --ink:#e8ecf4; --muted:#95a2b8;
+    --line:#232a37; --line2:#2f3745;
+    --indigo:#8b84ff; --indigo-soft:#1b1a3a; --indigo-ink:#b3adff;
+    --teal:#2dd4bf; --teal-soft:#0c2a27; --teal-ink:#7fe6d8;
+    --warn-soft:#2a1e0a; --warn-ink:#f2c07a;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.65);
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-padding-top: calc(env(safe-area-inset-top,0px) + 96px); -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16.5px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+
+  /* sticky progress bar */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    top: env(safe-area-inset-top,0px);
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:saturate(140%) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar .inner{ max-width:900px; margin:0 auto; padding:11px 20px; display:flex; align-items:center; gap:14px; }
+  .topbar .tt{ font-family:"Sora",sans-serif; font-weight:600; font-size:14.5px; white-space:nowrap; }
+  .topbar .tt .dot{ color:var(--teal); }
+  .bar{ flex:1; height:9px; border-radius:99px; background:var(--line); overflow:hidden; min-width:80px; }
+  .bar > i{ display:block; height:100%; width:0%; border-radius:99px;
+    background:linear-gradient(90deg,var(--indigo),var(--teal)); transition:width .35s ease; }
+  .pct{ font-family:"JetBrains Mono",monospace; font-size:12.5px; color:var(--muted); min-width:38px; text-align:right; }
+  .btn{
+    font-family:"Sora",sans-serif; font-size:12.5px; cursor:pointer;
+    background:var(--card); color:var(--ink); border:1px solid var(--line2);
+    border-radius:99px; padding:6px 12px; white-space:nowrap;
+  }
+  .btn:hover{ border-color:var(--indigo); }
+
+  .wrap{ max-width:900px; margin:0 auto; padding:0 20px 100px; }
+
+  header.hero{ padding:40px 0 6px; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px; font-family:"JetBrains Mono",monospace;
+    font-size:12px; color:var(--teal-ink); background:var(--teal-soft);
+    border:1px solid color-mix(in srgb,var(--teal) 30%, transparent);
+    padding:5px 12px; border-radius:99px;
+  }
+  h1{ font-family:"Sora",sans-serif; font-weight:700; letter-spacing:-.02em;
+    font-size:clamp(30px,5.6vw,46px); line-height:1.05; margin:18px 0 12px; }
+  h1 .g{ background:linear-gradient(90deg,var(--indigo),var(--teal)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lede{ color:var(--muted); font-size:clamp(16px,2.2vw,18.5px); max-width:64ch; margin:0 0 8px; }
+
+  .meta{ display:flex; flex-wrap:wrap; gap:10px; margin:20px 0 4px; }
+  .metapill{ font-size:13px; color:var(--muted); background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:8px 12px; display:flex; gap:8px; align-items:center; }
+  .metapill b{ color:var(--ink); font-weight:600; }
+
+  section{ margin-top:40px; }
+  .sechead{ display:flex; align-items:baseline; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .sechead h2{ font-family:"Sora",sans-serif; font-weight:600; letter-spacing:-.015em;
+    font-size:clamp(21px,3.4vw,27px); margin:0; }
+  .sechead .sub{ color:var(--muted); font-size:14px; }
+
+  /* framework card */
+  .frame{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px; box-shadow:var(--shadow); }
+  .steps{ display:grid; gap:10px; counter-reset:s; }
+  @media(min-width:640px){ .steps{ grid-template-columns:1fr 1fr; } }
+  .step{ display:flex; gap:12px; align-items:flex-start; }
+  .step .k{ flex:none; width:26px; height:26px; border-radius:8px; background:var(--indigo-soft); color:var(--indigo-ink);
+    font-family:"JetBrains Mono",monospace; font-size:13px; font-weight:600; display:grid; place-items:center; }
+  .step .b{ font-family:"Sora",sans-serif; font-weight:600; font-size:14.5px; }
+  .step .d{ color:var(--muted); font-size:13.5px; }
+
+  /* day nav */
+  .daynav{ display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 4px; }
+  .daynav a{ text-decoration:none; font-family:"JetBrains Mono",monospace; font-size:12.5px;
+    color:var(--muted); border:1px solid var(--line2); border-radius:99px; padding:6px 12px; background:var(--card); }
+  .daynav a:hover{ color:var(--indigo); border-color:var(--indigo); }
+
+  /* day card */
+  .day{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px 22px;
+    box-shadow:var(--shadow); margin-top:16px; scroll-margin-top:100px; }
+  .day .head{ display:flex; align-items:flex-start; gap:14px; }
+  .daynum{ flex:none; width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    background:var(--indigo-soft); color:var(--indigo-ink); font-family:"Sora",sans-serif; font-weight:700; line-height:1; }
+  .daynum small{ display:block; font-family:"JetBrains Mono",monospace; font-weight:500; font-size:9px; letter-spacing:.08em; margin-bottom:2px; }
+  .daynum b{ font-size:22px; }
+  .day h3{ font-family:"Sora",sans-serif; font-weight:600; font-size:19px; margin:2px 0 4px; letter-spacing:-.01em; }
+  .day .when{ font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--muted); }
+  .rk{ display:inline-flex; align-items:center; gap:6px; font-family:"JetBrains Mono",monospace; font-size:10.5px;
+    color:var(--teal-ink); background:var(--teal-soft); border:1px solid color-mix(in srgb,var(--teal) 28%, transparent);
+    padding:3px 9px; border-radius:99px; margin-left:8px; vertical-align:middle; }
+
+  .learn{ margin:14px 0 0; }
+  .learn .lab{ font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:6px; }
+  .learn ul{ margin:0; padding-left:18px; }
+  .learn li{ margin:3px 0; font-size:14.5px; color:var(--ink); }
+
+  .tasks{ margin-top:16px; display:grid; gap:2px; }
+  .tasks .lab{ font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:6px; }
+  label.task{ display:flex; gap:11px; align-items:flex-start; padding:8px 10px; border-radius:10px; cursor:pointer;
+    transition:background .12s ease; }
+  label.task:hover{ background:color-mix(in srgb,var(--indigo) 6%, transparent); }
+  label.task input{ appearance:none; -webkit-appearance:none; margin:0; flex:none; margin-top:2px;
+    width:19px; height:19px; border:2px solid var(--line2); border-radius:6px; cursor:pointer; position:relative;
+    transition:background .12s ease, border-color .12s ease; }
+  label.task input:checked{ background:var(--indigo); border-color:var(--indigo); }
+  label.task input:checked::after{ content:""; position:absolute; left:5px; top:1px; width:5px; height:10px;
+    border:solid #fff; border-width:0 2.5px 2.5px 0; transform:rotate(42deg); }
+  label.task input:focus-visible{ outline:2px solid var(--indigo); outline-offset:2px; }
+  label.task span{ font-size:14.5px; line-height:1.5; }
+  label.task input:checked + span{ color:var(--muted); text-decoration:line-through; text-decoration-color:color-mix(in srgb,var(--muted) 55%, transparent); }
+
+  .practice{ margin-top:14px; border-radius:12px; padding:12px 15px; background:var(--warn-soft);
+    border:1px solid color-mix(in srgb,var(--warn-ink) 25%, transparent); }
+  .practice .lab{ font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--warn-ink); margin-bottom:3px; }
+  .practice p{ margin:0; font-size:14.5px; }
+
+  /* rubric grid */
+  .rubric{ display:grid; gap:10px; }
+  @media(min-width:640px){ .rubric{ grid-template-columns:1fr 1fr; } }
+  .rc{ background:var(--card); border:1px solid var(--line); border-radius:13px; padding:13px 15px; }
+  .rc .n{ font-family:"Sora",sans-serif; font-weight:600; font-size:14.5px; display:flex; gap:8px; align-items:center; }
+  .rc .n .i{ width:8px; height:8px; border-radius:2px; background:var(--indigo); flex:none; }
+  .rc.tealed .n .i{ background:var(--teal); }
+  .rc p{ margin:5px 0 0; font-size:13.5px; color:var(--muted); }
+
+  /* resources */
+  .res{ display:grid; gap:10px; }
+  @media(min-width:640px){ .res{ grid-template-columns:1fr 1fr; } }
+  .r{ background:var(--card); border:1px solid var(--line); border-radius:13px; padding:13px 15px; }
+  .r .t{ font-family:"Sora",sans-serif; font-weight:600; font-size:14.5px; }
+  .r .s{ font-size:13px; color:var(--muted); margin-top:2px; }
+
+  hr.soft{ border:none; border-top:1px solid var(--line); margin:44px 0 0; }
+  footer{ color:var(--muted); font-size:13.5px; padding:24px 0 4px; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <span class="tt">Rubrik prep <span class="dot">·</span> week plan</span>
+    <span class="bar"><i id="barFill"></i></span>
+    <span class="pct" id="pctText">0%</span>
+    <button class="btn" id="resetBtn" title="Clear all checkboxes">reset</button>
+    <button class="btn" id="themeBtn" aria-label="Toggle theme">◐</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">◇ tailored to Rubrik's interview loop</span>
+    <h1>7 days to crack <span class="g">Rubrik system design</span>.</h1>
+    <p class="lede">Rubrik's design rounds aren't the usual "design Twitter" drill. They mix systems coding, heavy concurrency, low-level design, and storage/file-system problems — and they grade how you <em>think</em>, especially how you handle vague prompts. This plan trains exactly that.</p>
+    <div class="meta">
+      <span class="metapill">⏱ <b>3–4 hrs/day</b> &nbsp;(scale up or down)</span>
+      <span class="metapill">🎯 <b>Concurrency + storage</b> weighted</span>
+      <span class="metapill">✅ <b>Progress saves</b> in your browser</span>
+    </div>
+  </header>
+
+  <!-- FRAMEWORK -->
+  <section id="framework">
+    <div class="sechead">
+      <h2>Your repeatable framework</h2>
+      <span class="sub">use this on every single design question</span>
+    </div>
+    <div class="frame">
+      <div class="steps">
+        <div class="step"><span class="k">1</span><span><span class="b">Clarify &amp; scope</span><br><span class="d">Ask questions. Nail functional + non-functional needs before drawing anything. Rubrik grades this.</span></span></div>
+        <div class="step"><span class="k">2</span><span><span class="b">Constraints &amp; estimates</span><br><span class="d">Users, QPS, data size, read/write ratio. Back-of-envelope math.</span></span></div>
+        <div class="step"><span class="k">3</span><span><span class="b">APIs &amp; data model</span><br><span class="d">Define the key interfaces and the schema/entities.</span></span></div>
+        <div class="step"><span class="k">4</span><span><span class="b">High-level design</span><br><span class="d">Boxes and arrows: clients, services, storage, queues, caches.</span></span></div>
+        <div class="step"><span class="k">5</span><span><span class="b">Deep dive</span><br><span class="d">Pick 1–2 components and go deep — this is where you score points.</span></span></div>
+        <div class="step"><span class="k">6</span><span><span class="b">Scale &amp; bottlenecks</span><br><span class="d">Sharding, replication, caching, hot spots, single points of failure.</span></span></div>
+        <div class="step"><span class="k">7</span><span><span class="b">Tradeoffs</span><br><span class="d">State them out loud: CAP, consistency vs latency, cost vs speed.</span></span></div>
+        <div class="step"><span class="k">8</span><span><span class="b">Wrap up</span><br><span class="d">Recap, name weaknesses, mention what you'd do with more time.</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DAYS -->
+  <section id="days">
+    <div class="sechead">
+      <h2>The week, day by day</h2>
+      <span class="sub">jump to a day:</span>
+    </div>
+    <nav class="daynav">
+      <a href="#d1">Day 1</a><a href="#d2">Day 2</a><a href="#d3">Day 3</a><a href="#d4">Day 4</a>
+      <a href="#d5">Day 5</a><a href="#d6">Day 6</a><a href="#d7">Day 7</a>
+    </nav>
+
+    <!-- DAY 1 -->
+    <article class="day" id="d1">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>1</b></span>
+        <div>
+          <h3>Framework + fundamentals</h3>
+          <span class="when">~3 hrs · build the muscle you'll reuse all week</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Learn</div>
+        <ul>
+          <li>The 8-step framework above — memorize the order.</li>
+          <li>Core building blocks: load balancers, caches, SQL vs NoSQL, replication, sharding, CDNs.</li>
+          <li>CAP theorem and what "choose 2" means in practice.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d1t1"><span>Write the 8 framework steps from memory, no peeking.</span></label>
+        <label class="task"><input type="checkbox" data-id="d1t2"><span>Make a list of 6 clarifying questions you can ask for <em>any</em> vague prompt.</span></label>
+        <label class="task"><input type="checkbox" data-id="d1t3"><span>Review each building block: one line on when to use it and its main tradeoff.</span></label>
+        <label class="task"><input type="checkbox" data-id="d1t4"><span>Do a back-of-envelope estimate for 10M daily users → QPS &amp; storage.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Practice problem</div>
+        <p>Talk through <b>"design a URL shortener"</b> out loud in 30 min using all 8 steps. Goal: fluency with the framework, not the answer.</p>
+      </div>
+    </article>
+
+    <!-- DAY 2 -->
+    <article class="day" id="d2">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>2</b></span>
+        <div>
+          <h3>Low-level design + concurrency <span class="rk">◆ Rubrik core</span></h3>
+          <span class="when">~4 hrs · the part most candidates underprepare</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Learn</div>
+        <ul>
+          <li>OOD: SOLID principles + patterns you'll actually use (Strategy, Factory, Observer, Composite, Adapter).</li>
+          <li>Concurrency primitives: mutex, semaphore, condition variable, atomic.</li>
+          <li>Classic problems: readers–writers and producer–consumer.</li>
+          <li>Deadlock: the four conditions and how to prevent them.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d2t1"><span>Summarize each SOLID letter in one sentence with an example.</span></label>
+        <label class="task"><input type="checkbox" data-id="d2t2"><span>Implement the producer–consumer pattern with a bounded buffer.</span></label>
+        <label class="task"><input type="checkbox" data-id="d2t3"><span>Solve readers–writers (writer-preference) with locks/condition variables.</span></label>
+        <label class="task"><input type="checkbox" data-id="d2t4"><span>Write down 2 concrete deadlock-prevention strategies.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Practice problem</div>
+        <p><b>LLD: design a thread-safe LRU cache.</b> Code it. Make <code>get</code>/<code>put</code> O(1) and safe under concurrent access. This is a very Rubrik-style warmup.</p>
+      </div>
+    </article>
+
+    <!-- DAY 3 -->
+    <article class="day" id="d3">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>3</b></span>
+        <div>
+          <h3>Caching, deeply <span class="rk">◆ reported question</span></h3>
+          <span class="when">~3.5 hrs · a caching problem shows up a lot here</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Learn</div>
+        <ul>
+          <li>Eviction policies: LRU, LFU, FIFO — and how each is implemented.</li>
+          <li>Write strategies: write-through, write-back, write-around.</li>
+          <li>Invalidation, TTLs, and the thundering-herd / cache-stampede problem.</li>
+          <li>Distributed caching basics (consistent hashing at a glance).</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d3t1"><span>Compare LRU vs LFU: when each wins, and their worst cases.</span></label>
+        <label class="task"><input type="checkbox" data-id="d3t2"><span>Explain each write strategy and its consistency/durability tradeoff.</span></label>
+        <label class="task"><input type="checkbox" data-id="d3t3"><span>Note 2 ways to prevent a cache stampede.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Practice problem</div>
+        <p><b>Design a cache where the caller picks the eviction policy.</b> Put LRU and LFU behind one interface (Strategy pattern) so a new policy can be dropped in. This mirrors a question Rubrik has actually asked.</p>
+      </div>
+    </article>
+
+    <!-- DAY 4 -->
+    <article class="day" id="d4">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>4</b></span>
+        <div>
+          <h3>Storage, databases &amp; file systems <span class="rk">◆ Rubrik core</span></h3>
+          <span class="when">~4 hrs · Rubrik is a data-management company — lean in</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Learn</div>
+        <ul>
+          <li>SQL vs NoSQL; indexing with B-trees vs LSM-trees.</li>
+          <li>Partitioning, replication, and consistency models (strong → eventual).</li>
+          <li>Time-series database basics (why they differ from general stores).</li>
+          <li>File internals: chunking, deduplication, and metadata management.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d4t1"><span>Explain when an LSM-tree beats a B-tree (and the cost it pays).</span></label>
+        <label class="task"><input type="checkbox" data-id="d4t2"><span>Draw how data is partitioned + replicated across 3 nodes.</span></label>
+        <label class="task"><input type="checkbox" data-id="d4t3"><span>Describe content-based chunking and how dedup uses hashes.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Practice problem</div>
+        <p><b>Design a chunk-based large-file transfer / copy system</b> that can resume after a failure and skip already-transferred chunks. Reported Rubrik question — think checksums, offsets, idempotency.</p>
+      </div>
+    </article>
+
+    <!-- DAY 5 -->
+    <article class="day" id="d5">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>5</b></span>
+        <div>
+          <h3>Distributed systems + messaging <span class="rk">◆ HLD round</span></h3>
+          <span class="when">~4 hrs · the high-level design round</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Learn</div>
+        <ul>
+          <li>Consensus at a high level (Raft: leader, log, commit), quorums, leader election.</li>
+          <li>Fault tolerance, replication, and idempotency.</li>
+          <li>Message queues &amp; brokers: Kafka vs RabbitMQ, pub/sub, ordering, back-pressure.</li>
+          <li>High availability and monitoring patterns.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d5t1"><span>Explain Raft's leader election in your own words.</span></label>
+        <label class="task"><input type="checkbox" data-id="d5t2"><span>Contrast Kafka and RabbitMQ: when to reach for each.</span></label>
+        <label class="task"><input type="checkbox" data-id="d5t3"><span>Define idempotency and give one place it saves you.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Practice problem</div>
+        <p><b>Design a distributed logging + monitoring system</b> that stays available under node failure and stores metrics in a time-series DB. Reported Rubrik theme — cover ingestion, buffering, HA, and querying.</p>
+      </div>
+    </article>
+
+    <!-- DAY 6 -->
+    <article class="day" id="d6">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>6</b></span>
+        <div>
+          <h3>Timed mock interviews</h3>
+          <span class="when">~3 hrs · practice under the clock, out loud</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">How to run a mock</div>
+        <ul>
+          <li>Set a 50-min timer. Speak everything; treat silence as lost points.</li>
+          <li>Drive the conversation — don't wait to be prompted.</li>
+          <li>Use a peer, or narrate to a rubber duck / record yourself and rewatch.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d6t1"><span>Mock A (HLD, 50 min): design a notification / message-queue system.</span></label>
+        <label class="task"><input type="checkbox" data-id="d6t2"><span>Mock B (systems/LLD, 50 min): design a distributed rate limiter.</span></label>
+        <label class="task"><input type="checkbox" data-id="d6t3"><span>After each: list 3 tradeoffs you missed and 1 thing you rushed.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Stretch problem</div>
+        <p>If you have energy: <b>design a "changed block tracker"</b> — a system that records which blocks of storage changed since the last snapshot. This is a real Rubrik question and blends storage + concurrency.</p>
+      </div>
+    </article>
+
+    <!-- DAY 7 -->
+    <article class="day" id="d7">
+      <div class="head">
+        <span class="daynum"><small>DAY</small><b>7</b></span>
+        <div>
+          <h3>Rubrik-flavored mock + consolidate</h3>
+          <span class="when">~3 hrs · then rest before the real thing</span>
+        </div>
+      </div>
+      <div class="learn">
+        <div class="lab">Focus</div>
+        <ul>
+          <li>One more mock on Rubrik's home turf: backup/snapshot or object storage.</li>
+          <li>Self-score your mocks against the rubric below — be honest.</li>
+          <li>Compress everything into a one-page cheat sheet.</li>
+        </ul>
+      </div>
+      <div class="tasks">
+        <div class="lab">Tasks</div>
+        <label class="task"><input type="checkbox" data-id="d7t1"><span>Mock (50 min): design a backup &amp; recovery system with incremental snapshots + dedup.</span></label>
+        <label class="task"><input type="checkbox" data-id="d7t2"><span>Score this + Day-6 mocks against all 10 rubric criteria.</span></label>
+        <label class="task"><input type="checkbox" data-id="d7t3"><span>Build a 1-page cheat sheet: framework, key numbers, patterns, concurrency checklist.</span></label>
+        <label class="task"><input type="checkbox" data-id="d7t4"><span>Light review only. Sleep well — a fresh brain beats a crammed one.</span></label>
+      </div>
+      <div class="practice">
+        <div class="lab">Reminder</div>
+        <p>On the day: <b>clarify first, think out loud, state tradeoffs.</b> Rubrik rewards the reasoning, not a memorized diagram.</p>
+      </div>
+    </article>
+  </section>
+
+  <!-- RUBRIC -->
+  <section id="rubric">
+    <div class="sechead">
+      <h2>What you're actually graded on</h2>
+      <span class="sub">the real rubric — self-score your mocks against it</span>
+    </div>
+    <div class="rubric">
+      <div class="rc"><div class="n"><span class="i"></span>Requirement clarification</div><p>You asked questions and pinned scope before designing. Heavily weighted here.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Structured approach</div><p>You drove a clear, logical progression instead of jumping around.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Correctness</div><p>The design actually satisfies the stated requirements.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Data model &amp; APIs</div><p>Sensible entities, schema, and interfaces.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Scalability</div><p>You found bottlenecks and addressed hot spots and single points of failure.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Tradeoff reasoning</div><p>You named tradeoffs explicitly rather than presenting one "right" answer.</p></div>
+      <div class="rc tealed"><div class="n"><span class="i"></span>Concurrency &amp; correctness</div><p>Thread safety, locking, race/deadlock awareness — a Rubrik favorite.</p></div>
+      <div class="rc tealed"><div class="n"><span class="i"></span>Depth on a component</div><p>You went genuinely deep on at least one part of the system.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Handling ambiguity</div><p>You stayed composed and made reasonable assumptions when the prompt was vague.</p></div>
+      <div class="rc"><div class="n"><span class="i"></span>Communication</div><p>Clear, collaborative, easy to follow. You thought out loud.</p></div>
+    </div>
+  </section>
+
+  <!-- RESOURCES -->
+  <section id="resources">
+    <div class="sechead">
+      <h2>Resources worth your time</h2>
+      <span class="sub">don't try to read all of these — sample as needed</span>
+    </div>
+    <div class="res">
+      <div class="r"><div class="t">Designing Data-Intensive Applications</div><div class="s">Kleppmann. The bible for storage, replication, consistency — perfect for Rubrik.</div></div>
+      <div class="r"><div class="t">System Design Interview, Vol 1 &amp; 2</div><div class="s">Alex Xu. Clean walkthroughs of the classic problems and the framework.</div></div>
+      <div class="r"><div class="t">Java Concurrency in Practice</div><div class="s">Goetz. For the concurrency + thread-safety rounds that Rubrik loves.</div></div>
+      <div class="r"><div class="t">ByteByteGo / Gaurav Sen (YouTube)</div><div class="s">Fast visual refreshers on distributed-systems building blocks.</div></div>
+      <div class="r"><div class="t">Grokking the System Design / LLD Interview</div><div class="s">Structured practice sets for both high- and low-level design.</div></div>
+      <div class="r"><div class="t">Rubrik Engineering Blog</div><div class="s">Read a couple of posts to speak their language: backup, dedup, scale.</div></div>
+    </div>
+  </section>
+
+  <hr class="soft">
+  <footer>
+    A focused 7-day plan for Rubrik's system design + system coding rounds. Adjust the pace to your schedule — consistency beats intensity. Your check-offs are saved only in this browser.
+  </footer>
+</div>
+
+<script>
+  (function(){
+    var root = document.documentElement;
+    var KEY = 'rubrik-plan-v1';
+    var THEME = 'rubrik-plan-theme';
+
+    // ---- theme ----
+    var tb = document.getElementById('themeBtn');
+    try { var st = localStorage.getItem(THEME); if(st==='light'||st==='dark') root.setAttribute('data-theme', st); } catch(e){}
+    function tlabel(){ var t=root.getAttribute('data-theme'); tb.textContent = t==='dark' ? '☾' : '☀'; }
+    tlabel();
+    tb.addEventListener('click', function(){
+      var next = root.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try{ localStorage.setItem(THEME, next); }catch(e){}
+      tlabel();
+    });
+
+    // ---- progress ----
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('input[type=checkbox][data-id]'));
+    var fill = document.getElementById('barFill');
+    var pct = document.getElementById('pctText');
+
+    function load(){
+      var saved = {};
+      try{ saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }catch(e){ saved = {}; }
+      boxes.forEach(function(b){ if(saved[b.dataset.id]) b.checked = true; });
+    }
+    function save(){
+      var m = {};
+      boxes.forEach(function(b){ if(b.checked) m[b.dataset.id] = 1; });
+      try{ localStorage.setItem(KEY, JSON.stringify(m)); }catch(e){}
+    }
+    function render(){
+      var done = boxes.filter(function(b){ return b.checked; }).length;
+      var p = boxes.length ? Math.round(done/boxes.length*100) : 0;
+      fill.style.width = p + '%';
+      pct.textContent = p + '%';
+    }
+
+    boxes.forEach(function(b){ b.addEventListener('change', function(){ save(); render(); }); });
+
+    document.getElementById('resetBtn').addEventListener('click', function(){
+      if(!confirm('Clear all your progress?')) return;
+      boxes.forEach(function(b){ b.checked = false; });
+      save(); render();
+    });
+
+    load(); render();
+  })();
+</script>
+</body>
+</html>
