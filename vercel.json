@@ -12,6 +12,6 @@
   ],
   {
   "cleanUrls": true,
-  "rewrites": [{ "source": "/flying-doors-java", "destination": "/flying-doors-java" }]
+  "rewrites": [{ "source": "/flying-doors-java", "destination": "/flying-doors-java" }, { "source": "/lld-quest", "destination": "/lld-quest" }]
 }
 }
