@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
     {
@@ -9,9 +10,5 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     }
-  ],
-  {
-  "cleanUrls": true,
-  "rewrites": [{ "source": "/flying-doors-java", "destination": "/flying-doors-java" }, { "source": "/lld-quest", "destination": "/lld-quest" }]
-}
+  ]
 }
