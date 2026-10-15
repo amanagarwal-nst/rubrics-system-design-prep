@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LLD Quest — learn low-level design step by step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F6FB; --panel:#FFFFFF; --panel2:#E8EFF8; --ink:#14305C; --text:#1C2B44; --muted:#56698A;
+  --line:rgba(20,48,92,.10); --rule:rgba(20,48,92,.28);
+  --accent:#E09E00; --accent-soft:rgba(224,158,0,.16); --accent-ink:#3B2A00;
+  --ok:#1C8556; --ok-soft:rgba(28,133,86,.12); --bad:#C0392B; --bad-soft:rgba(192,57,43,.10);
+  --code:#0F2747; --code-text:#DCE7F5;
+  --display:"Chakra Petch", "Trebuchet MS", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C2140; --panel:#11305A; --panel2:#163a6a; --ink:#E7EFFA; --text:#DCE6F4; --muted:#9DB1CD;
+    --line:rgba(231,239,250,.07); --rule:rgba(231,239,250,.25);
+    --accent:#FFC53D; --accent-soft:rgba(255,197,61,.16); --accent-ink:#2A1E00;
+    --ok:#4ADE9A; --ok-soft:rgba(74,222,154,.12); --bad:#FF8A70; --bad-soft:rgba(255,138,112,.12);
+    --code:#071629; --code-text:#DCE7F5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C2140; --panel:#11305A; --panel2:#163a6a; --ink:#E7EFFA; --text:#DCE6F4; --muted:#9DB1CD;
+  --line:rgba(231,239,250,.07); --rule:rgba(231,239,250,.25);
+  --accent:#FFC53D; --accent-soft:rgba(255,197,61,.16); --accent-ink:#2A1E00;
+  --ok:#4ADE9A; --ok-soft:rgba(74,222,154,.12); --bad:#FF8A70; --bad-soft:rgba(255,138,112,.12);
+  --code:#071629; --code-text:#DCE7F5;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px)}
+body{
+  margin:0; font-family:var(--body); color:var(--text); background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:24px 24px; line-height:1.55; font-size:16px; min-height:100vh;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);color:var(--ink);line-height:1.15;margin:0}
+code,pre{font-family:var(--mono)}
+
+/* top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:2px solid var(--ink)}
+.bar-in{max-width:1080px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--ink);background:none;border:0;padding:0;letter-spacing:.5px}
+.brand span{display:inline-block;border:2px solid var(--ink);padding:0 6px;margin-right:6px}
+.rank{flex:1;min-width:200px;display:flex;align-items:center;gap:10px}
+.rank-name{font-family:var(--display);font-weight:600;color:var(--ink);white-space:nowrap}
+.xpbar{flex:1;height:12px;border:2px solid var(--ink);background:var(--panel2);position:relative;min-width:90px}
+.xpbar i{position:absolute;inset:0 auto 0 0;background:var(--accent);transition:width .5s ease}
+.xpnum{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
+.chips{display:flex;gap:8px}
+.chip{border:2px solid var(--ink);padding:2px 10px;font-weight:600;font-size:14px;background:var(--panel);white-space:nowrap}
+.chip.hot{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+main{max-width:1080px;margin:0 auto;padding:28px 18px 80px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:28px;align-items:center;margin-bottom:44px}
+.hero h1{font-size:clamp(32px,5vw,52px);font-weight:700;letter-spacing:-.5px}
+.hero p{font-size:18px;color:var(--muted);max-width:56ch;margin:14px 0 22px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--ink);background:var(--ink);color:var(--paper);padding:10px 18px;font-weight:600;font-family:var(--display);font-size:16px}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--accent)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.amber{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.prompt-card{border:2px dashed var(--rule);background:var(--panel);padding:18px 20px;font-family:var(--mono);font-size:14px;color:var(--text)}
+.prompt-card .who{color:var(--muted);display:block;margin-bottom:6px}
+.prompt-card .type{color:var(--ink);font-weight:500}
+.caret{display:inline-block;width:8px;height:16px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 16px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.sec-h h2{font-size:26px}
+.sec-h p{margin:0;color:var(--muted);font-size:14px}
+
+/* mission map as UML classes */
+.map{display:flex;flex-direction:column;align-items:stretch;margin-bottom:52px}
+.uml-wrap{display:flex;flex-direction:column;align-items:center}
+.uml-wrap:nth-child(odd){align-items:flex-start}
+.uml-wrap:nth-child(even){align-items:flex-end}
+.link{height:34px;border-left:2px dashed var(--rule);margin:0 auto}
+.uml{width:min(520px,100%);background:var(--panel);border:2px solid var(--ink);text-align:left;padding:0;display:block;position:relative}
+.uml:not(:disabled):hover{box-shadow:6px 6px 0 var(--accent);transform:translate(-3px,-3px)}
+.uml:disabled{cursor:not-allowed}
+.uml.locked{opacity:.55;border-style:dashed}
+.uml-head{padding:10px 14px;border-bottom:2px solid var(--ink);text-align:center}
+.stereo{font-family:var(--mono);font-size:13px;color:var(--muted);display:block}
+.uml-head b{font-family:var(--display);font-size:22px;color:var(--ink)}
+.uml-sec{padding:8px 14px;font-family:var(--mono);font-size:13.5px;border-bottom:1px solid var(--rule);color:var(--text)}
+.uml-sec:last-child{border-bottom:0;display:flex;justify-content:space-between;align-items:center}
+.uml-sec div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stars{font-size:18px;letter-spacing:2px;color:var(--accent)}
+.stars .off{color:var(--rule)}
+.tagline{font-family:var(--body);color:var(--muted);font-size:14px;white-space:normal!important}
+
+/* playbook */
+.playbook{list-style:none;margin:0 0 52px;padding:0;counter-reset:s;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border:2px solid var(--ink);background:var(--panel)}
+.playbook li{counter-increment:s;padding:16px 16px 18px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);position:relative}
+.playbook li::before{content:counter(s);font-family:var(--display);font-weight:700;font-size:30px;color:var(--accent);line-height:1}
+.playbook h3{font-size:18px;margin:6px 0 4px}
+.playbook p{margin:0;font-size:14.5px;color:var(--text)}
+.playbook .min{position:absolute;top:14px;right:14px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+/* badges */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:28px}
+.badge{display:flex;gap:12px;align-items:center;border:2px solid var(--ink);background:var(--panel);padding:12px}
+.badge .ic{font-size:26px;width:44px;height:44px;display:grid;place-items:center;border:2px solid var(--accent);background:var(--accent-soft);flex:none}
+.badge.off{border-style:dashed;opacity:.5}
+.badge.off .ic{filter:grayscale(1);border-color:var(--rule);background:transparent}
+.badge b{display:block;font-family:var(--display);color:var(--ink)}
+.badge small{color:var(--muted);font-size:13px;line-height:1.35;display:block}
+.reset{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:14px;padding:0}
+
+/* mission view */
+.m-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.back{background:none;border:2px solid var(--ink);padding:6px 12px;font-weight:600}
+.m-top h1{font-size:clamp(24px,3.4vw,34px)}
+.m-prompt{font-family:var(--mono);font-size:14px;color:var(--muted);margin:0 0 18px}
+.rail-scroll{overflow-x:auto;margin-bottom:20px;padding-bottom:4px}
+.rail{display:flex;min-width:640px;list-style:none;margin:0;padding:0}
+.rail li{flex:1;position:relative;text-align:center;font-size:12.5px;color:var(--muted);padding-top:34px}
+.rail li::before{content:"";position:absolute;top:13px;left:0;right:0;height:2px;background:var(--rule)}
+.rail li:first-child::before{left:50%}
+.rail li:last-child::before{right:50%}
+.rail .dot{position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:28px;border:2px solid var(--rule);background:var(--panel);display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:13px;color:var(--muted);z-index:1}
+.rail li.done .dot{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rail li.done.perfect .dot{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rail li.now .dot{border-color:var(--accent);color:var(--ink);box-shadow:0 0 0 4px var(--accent-soft)}
+.rail li.now{color:var(--ink);font-weight:600}
+
+.stage{background:var(--panel);border:2px solid var(--ink);box-shadow:8px 8px 0 var(--panel2)}
+.stage-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.stage-h h2{font-size:22px}
+.xp-tag{font-family:var(--mono);font-size:13px;border:2px solid var(--accent);padding:2px 8px;color:var(--ink);background:var(--accent-soft)}
+.stage-b{padding:20px}
+.concept{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 16px;margin-bottom:18px;max-width:78ch}
+.concept b{font-family:var(--display);color:var(--ink)}
+.concept p{margin:4px 0 0}
+.q{font-size:18px;font-weight:600;color:var(--ink);margin:0 0 14px;max-width:70ch}
+.hint{border:2px dashed var(--rule);padding:10px 14px;margin:0 0 14px;font-size:15px;max-width:78ch}
+
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.opt{border:2px solid var(--rule);background:var(--paper);padding:12px 14px;text-align:left;display:flex;gap:10px;align-items:flex-start;min-height:52px}
+.opt .box{flex:none;width:20px;height:20px;border:2px solid var(--ink);margin-top:2px;display:grid;place-items:center;font-size:13px;font-weight:700}
+.opt[aria-pressed="true"]{border-color:var(--ink);background:var(--panel2)}
+.opt[aria-pressed="true"] .box{background:var(--ink);color:var(--paper)}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft)}
+.opt.bad{border-color:var(--bad);background:var(--bad-soft)}
+.opt.miss{border-color:var(--ok);border-style:dashed}
+.opt .why{display:block;font-size:13.5px;color:var(--muted);margin-top:4px}
+.opt.locked{cursor:default}
+
+.cls{display:flex;flex-direction:column;gap:10px}
+.cls-row{display:flex;gap:12px;align-items:center;justify-content:space-between;border:2px solid var(--rule);background:var(--paper);padding:10px 12px;flex-wrap:wrap}
+.cls-row.ok{border-color:var(--ok);background:var(--ok-soft)}
+.cls-row.bad{border-color:var(--bad);background:var(--bad-soft)}
+.cls-row .t{font-weight:500;flex:1;min-width:200px}
+.cls-row .fix{display:block;font-size:13px;color:var(--bad);font-weight:600}
+.seg{display:flex;border:2px solid var(--ink)}
+.seg button{border:0;border-right:2px solid var(--ink);background:var(--panel);padding:6px 12px;font-size:14px;font-weight:500}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+.ord{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ord h3{font-size:15px;color:var(--muted);font-family:var(--body);font-weight:600;margin-bottom:8px}
+.pool,.seq{display:flex;flex-direction:column;gap:8px;min-height:120px;padding:10px;border:2px dashed var(--rule)}
+.seq{counter-reset:o;border-style:solid;border-color:var(--ink);background:var(--paper)}
+.tile{border:2px solid var(--ink);background:var(--panel);padding:8px 12px;text-align:left;font-size:15px}
+.seq .tile{counter-increment:o;display:flex;gap:10px}
+.seq .tile::before{content:counter(o);font-family:var(--display);font-weight:700;color:var(--accent)}
+.tile.ok{border-color:var(--ok);background:var(--ok-soft)}
+.tile.bad{border-color:var(--bad);background:var(--bad-soft)}
+.empty{color:var(--muted);font-size:14px;padding:8px}
+
+.qz{display:flex;flex-direction:column;gap:22px}
+.qz-item p{margin:0 0 8px;font-weight:600;color:var(--ink);max-width:72ch}
+.qz-item .opts{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.qz-item .opt .box{border-radius:50%}
+.qz-why{margin:8px 0 0;font-size:14.5px;color:var(--text);border-left:3px solid var(--rule);padding-left:10px;max-width:78ch}
+
+pre.code{background:var(--code);color:var(--code-text);padding:16px 18px;overflow-x:auto;font-size:13.5px;line-height:1.6;margin:0 0 16px;border:2px solid var(--ink)}
+.code .kw{color:#FFC53D}
+.code .cm{color:#7FA3CF;font-style:italic}
+.code .ty{color:#7EE0B5}
+.notes{margin:0;padding-left:20px;max-width:78ch}
+.notes li{margin-bottom:6px}
+
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:20px;padding-top:16px;border-top:1px solid var(--rule)}
+.actions .sp{flex:1}
+.msg{color:var(--bad);font-weight:600;font-size:14px}
+.fb{margin-top:18px;border:2px solid var(--ink);padding:14px 16px;display:flex;gap:14px;align-items:flex-start;max-width:820px}
+.fb.good{border-color:var(--ok);background:var(--ok-soft)}
+.fb.mid{border-color:var(--accent);background:var(--accent-soft)}
+.fb.low{border-color:var(--bad);background:var(--bad-soft)}
+.fb .big{font-family:var(--display);font-weight:700;font-size:26px;color:var(--ink);white-space:nowrap}
+.fb p{margin:0}
+.fb .ttl{font-weight:700;color:var(--ink)}
+
+/* finish */
+.finish{background:var(--panel);border:2px solid var(--ink);padding:34px 24px;text-align:center;box-shadow:8px 8px 0 var(--accent)}
+.finish h1{font-size:clamp(28px,4vw,40px)}
+.finish .stars{font-size:46px;margin:14px 0}
+.finish .row{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;margin:10px 0 22px}
+.finish .row div{font-family:var(--mono);color:var(--muted);font-size:14px}
+.finish .row b{display:block;font-family:var(--display);font-size:28px;color:var(--ink)}
+.finish .acts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.new-badges{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:0 0 22px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(140%);background:var(--ink);color:var(--paper);padding:12px 18px;border:2px solid var(--accent);font-weight:600;z-index:20;transition:transform .35s ease;max-width:90vw}
+.toast.on{transform:translateX(-50%) translateY(0)}
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:30;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.7}}
+.fade{animation:fadein .3s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .uml-wrap:nth-child(odd),.uml-wrap:nth-child(even){align-items:center}
+  .ord{grid-template-columns:1fr}
+  .stage-b{padding:16px}
+  .rank{order:3;flex-basis:100%}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+  .confetti{display:none}
+}
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <button class="brand" id="home-btn" aria-label="LLD Quest home"><span>LLD</span>Quest</button>
+  <div class="rank">
+    <span class="rank-name" id="rank-name">Intern</span>
+    <div class="xpbar" role="progressbar" aria-label="Progress to next rank" id="xpbar"><i id="xpfill" style="width:0"></i></div>
+    <span class="xpnum" id="xpnum">0 XP</span>
+  </div>
+  <div class="chips">
+    <span class="chip" id="streak" title="Perfect stages in a row. At 3+ you earn a 20% combo bonus.">🔥 0</span>
+    <span class="chip" id="badgecount" title="Badges earned">🏅 0</span>
+  </div>
+</div></header>
+<main id="app"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ------------------------------------------------------------------ */
+/*  CONTENT                                                            */
+/* ------------------------------------------------------------------ */
+const STEPS = [
+  {n:"Clarify", min:"5 min", d:"Ask questions until the vague prompt has edges: scale, actors, variations, what is out of scope. Interviewers grade this step heavily."},
+  {n:"Requirements", min:"3 min", d:"Write down functional requirements (what the system does) and non-functional ones (consistency, extensibility, performance). This becomes your checklist."},
+  {n:"Entities", min:"5 min", d:"Underline the nouns in your requirements. Real things with state and behaviour become classes; adjectives become enums or fields; verbs become methods."},
+  {n:"Relationships & flow", min:"7 min", d:"Connect the classes: is-a (inheritance), has-a (composition), uses (dependency). Trace one core flow end to end so the diagram is proven, not guessed."},
+  {n:"Patterns & SOLID", min:"5 min", d:"Look for the parts that vary or grow. Wrap them behind interfaces and pick a pattern only when it removes a real if-else chain or coupling."},
+  {n:"Edge cases & concurrency", min:"5 min", d:"Two users at once, partial failures, rounding, timeouts. Say how you lock, validate and recover. This is where senior signals show up."},
+  {n:"Code", min:"15 min", d:"Write the skeleton: enums, interfaces, core classes, and the one method that runs the main flow. Readable names beat clever code."}
+];
+
+const LEVELS = [
+  [0,"Intern"],[150,"Junior Dev"],[350,"SDE-1"],[600,"SDE-2"],[900,"Senior Engineer"],[1200,"Staff Engineer"],[1500,"Architect"]
+];
+
+const BADGES = [
+  {id:"first", ic:"🚀", n:"First commit", d:"Clear your first stage."},
+  {id:"clarify", ic:"❓", n:"Question everything", d:"Perfect score on any Clarify stage."},
+  {id:"nohint", ic:"🧠", n:"No hints needed", d:"Finish a mission without opening a hint."},
+  {id:"streak5", ic:"🔥", n:"On a roll", d:"Five perfect stages in a row."},
+  {id:"pattern", ic:"🧩", n:"Pattern spotter", d:"Perfect Patterns stage in three missions."},
+  {id:"race", ic:"🔒", n:"Race condition hunter", d:"Perfect edge-case stage in BookMyShow."},
+  {id:"flawless", ic:"⭐", n:"Flawless design", d:"Earn three stars on a mission."},
+  {id:"architect", ic:"🏛️", n:"Architect", d:"Finish all five missions."}
+];
+
+const FN_NF = ["Functional","Non-functional"];
+const REL = ["Is-a","Has-a","Uses"];
+
+const MISSIONS = [
+/* =================== 1. PARKING LOT =================== */
+{
+ id:"parking", title:"Parking Lot", level:"Easy", patterns:"Strategy, Singleton",
+ tagline:"The classic warm-up. Learn the full flow on a system everyone understands.",
+ prompt:"Design a parking lot system.",
+ stages:[
+ {type:"multi", xp:40,
+  learn:"A one-line prompt hides a dozen decisions. Good clarifying questions change your design; bad ones are about visuals, vendors or infrastructure, which belong to UI or high-level design.",
+  q:"Which questions are worth asking the interviewer? Select all that apply.",
+  hint:"Ask yourself: would the answer change which classes or methods I write?",
+  options:[
+   {t:"Does the lot have multiple floors?", ok:true, why:"Decides whether you need a Floor class between ParkingLot and ParkingSpot."},
+   {t:"Which vehicle types and spot sizes exist?", ok:true, why:"Drives the Vehicle hierarchy and the spot-fitting rule."},
+   {t:"How is the fee calculated: hourly, flat, or by vehicle type?", ok:true, why:"Tells you pricing varies, which hints at a Strategy."},
+   {t:"Are there multiple entry and exit gates?", ok:true, why:"Multiple gates means concurrent spot assignment, so you need locking."},
+   {t:"What colour should the printed ticket be?", ok:false, why:"Visual detail; no class or method changes."},
+   {t:"Should we use MySQL or MongoDB?", ok:false, why:"Storage choice is high-level design. In LLD you model objects first."},
+   {t:"Do some spots have EV charging?", ok:true, why:"Good extension question: shows you plan for new spot types."}
+  ]},
+ {type:"classify", xp:40, buckets:FN_NF,
+  learn:"Functional requirements are features a user can see. Non-functional requirements are qualities: consistency, extensibility, performance, availability.",
+  q:"Sort each requirement.",
+  hint:"If a user could click a button for it, it's functional.",
+  items:[
+   {t:"Issue a ticket when a vehicle enters", b:0},
+   {t:"Assign the nearest free spot that fits the vehicle", b:0},
+   {t:"Calculate the fee at exit", b:0},
+   {t:"Two vehicles must never be assigned the same spot", b:1},
+   {t:"Adding a new vehicle type shouldn't require editing existing classes", b:1},
+   {t:"Show free spots per floor on a display board", b:0}
+  ]},
+ {type:"multi", xp:40,
+  learn:"Nouns with their own state and behaviour become classes. Pure verbs become methods; descriptors become enums or fields.",
+  q:"Which of these should be classes (or interfaces) in your design?",
+  hint:"Seven are real entities. Look for things that hold data or make decisions.",
+  options:[
+   {t:"ParkingLot", ok:true, why:"The root object that owns floors and gates."},
+   {t:"Floor", ok:true, why:"Holds spots and a display board."},
+   {t:"ParkingSpot", ok:true, why:"Has a size and an occupied/free state."},
+   {t:"Vehicle", ok:true, why:"Abstract base for Car, Bike, Truck."},
+   {t:"Ticket", ok:true, why:"Links vehicle, spot and entry time."},
+   {t:"EntryGate / ExitGate", ok:true, why:"Where park() and unpark() requests start."},
+   {t:"PricingStrategy", ok:true, why:"Interface so fee rules can change."},
+   {t:"Parking", ok:false, why:"It's an action, so it becomes a method: park()."},
+   {t:"Asphalt", ok:false, why:"Physical detail with no behaviour in the software."}
+  ]},
+ {type:"classify", xp:40, buckets:REL,
+  learn:"Is-a is inheritance (Car extends Vehicle). Has-a is ownership; the part lives inside the whole (Floor has ParkingSpots). Uses is a dependency passed in or called (ExitGate uses PricingStrategy).",
+  q:"Pick the relationship for each pair.",
+  hint:"Ask: could I say “A is a kind of B”? If not, does A own B, or just call it?",
+  items:[
+   {t:"Car → Vehicle", b:0},
+   {t:"ParkingLot → Floor", b:1},
+   {t:"Floor → ParkingSpot", b:1},
+   {t:"ExitGate → PricingStrategy", b:2},
+   {t:"Truck → Vehicle", b:0},
+   {t:"Ticket → ParkingSpot", b:1}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"A pattern earns its place when it removes a growing if-else chain or hidden coupling. Name the pattern, then say what problem it solves.",
+  q:"Choose the best design choice for each scenario.",
+  hint:"One of these is about swapping algorithms; the other is about having exactly one object.",
+  qs:[
+   {q:"Fees differ: hourly for cars, flat for bikes, double on weekends. More rules are coming.", opts:["Strategy","Observer","Decorator","Builder"], a:0, why:"Each rule becomes a PricingStrategy class. The ExitGate calls fee() without knowing which rule it holds."},
+   {q:"The whole system should have exactly one ParkingLot object that every gate shares.", opts:["Factory","Singleton","Adapter","Prototype"], a:1, why:"Singleton gives one shared instance. Mention the trade-off: harder to unit test, so inject it where you can."},
+   {q:"The display board on each floor should refresh whenever a spot is taken or freed.", opts:["Observer","State","Command","Composite"], a:0, why:"The board subscribes to spot changes. Spots don't need to know what boards exist."}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Interviewers push on the moments where two things happen at once, or where reality breaks your happy path.",
+  q:"How would you handle these?",
+  hint:"Think about the smallest lock that keeps the data correct.",
+  qs:[
+   {q:"Two entry gates try to grab the last free spot at the same instant.", opts:["Let both park; the second driver will notice","Make spot assignment atomic, e.g. synchronize per floor or compare-and-set on the spot","Restart the system","Only allow one gate to be open"], a:1, why:"Lock the smallest scope that guards the shared state. Per-floor locking keeps other floors fast."},
+   {q:"A driver loses their ticket at exit.", opts:["Let them out free","Block the exit forever","Look up the ticket by number plate, or charge a fixed lost-ticket fee","Delete their vehicle record"], a:2, why:"A Map from plate to active ticket solves it; a lost-ticket policy is the fallback."}
+  ]},
+ {type:"code", xp:30,
+  learn:"Write the skeleton in this order: enums, abstract classes, interfaces, then the orchestrating class with the main flow.",
+  q:"Read the skeleton and the walkthrough, then claim your XP.",
+  code:`enum VehicleType { BIKE, CAR, TRUCK }
+enum SpotSize { SMALL, MEDIUM, LARGE }
+
+abstract class Vehicle { String plate; VehicleType type; }
+class Car extends Vehicle { }
+class Bike extends Vehicle { }
+
+class ParkingSpot {
+    String id; SpotSize size; Vehicle parked;
+    boolean isFree() { return parked == null; }
+}
+
+class Floor {
+    int number; List<ParkingSpot> spots;
+    // synchronized: two gates can't take the same spot
+    synchronized ParkingSpot assign(Vehicle v) {
+        for (ParkingSpot s : spots)
+            if (s.isFree() && fits(s, v)) { s.parked = v; return s; }
+        return null;
+    }
+}
+
+interface PricingStrategy { double fee(Ticket t, LocalDateTime exit); }
+class HourlyPricing implements PricingStrategy { /* rate * hours */ }
+
+class Ticket { String id; Vehicle vehicle; ParkingSpot spot; LocalDateTime entry; }
+
+class ParkingLot {
+    private static final ParkingLot INSTANCE = new ParkingLot();
+    List<Floor> floors; PricingStrategy pricing;
+
+    Ticket park(Vehicle v) {
+        for (Floor f : floors) {
+            ParkingSpot s = f.assign(v);
+            if (s != null) return new Ticket(v, s, LocalDateTime.now());
+        }
+        throw new LotFullException();
+    }
+    double unpark(Ticket t) {
+        double amount = pricing.fee(t, LocalDateTime.now());
+        t.spot.parked = null;   // free the spot
+        return amount;
+    }
+}`,
+  notes:["Flow: EntryGate calls park(), which walks floors and asks each to assign() a spot atomically.","unpark() delegates the fee to the injected PricingStrategy, so new pricing never touches ParkingLot.","Next upgrade: replace the linear scan with a free-spot queue per size for O(1) assignment."]}
+ ]
+},
+/* =================== 2. VENDING MACHINE =================== */
+{
+ id:"vending", title:"Vending Machine", level:"Easy", patterns:"State, Chain of Responsibility",
+ tagline:"The best place to learn the State pattern: one machine, very different behaviour at each moment.",
+ prompt:"Design a vending machine that accepts coins and notes.",
+ stages:[
+ {type:"multi", xp:40,
+  learn:"For machines, ask about the lifecycle: what can the user do at each moment, and what can go wrong between steps?",
+  q:"Which questions are worth asking?",
+  hint:"Focus on money flow, stock, and cancellation.",
+  options:[
+   {t:"Which coins and notes are accepted?", ok:true, why:"Defines the Coin/Note enum and validation."},
+   {t:"Should the machine return change?", ok:true, why:"Adds a change-making component, a classic follow-up."},
+   {t:"What happens if the selected product is sold out?", ok:true, why:"An error path the state machine must handle."},
+   {t:"Can the user cancel and get a refund?", ok:true, why:"Every state needs a cancel transition."},
+   {t:"Can an admin restock and collect cash?", ok:true, why:"Introduces an admin actor and inventory updates."},
+   {t:"Which snack brands will be stocked?", ok:false, why:"Data, not design. Products are generic."},
+   {t:"How heavy is the machine?", ok:false, why:"Hardware detail with no effect on classes."}
+  ]},
+ {type:"classify", xp:40, buckets:FN_NF,
+  learn:"Correctness rules about money are usually functional; how easily the design grows is non-functional.",
+  q:"Sort each requirement.",
+  hint:"Two of these describe qualities rather than features.",
+  items:[
+   {t:"User selects a product by code", b:0},
+   {t:"User inserts coins and notes", b:0},
+   {t:"Machine dispenses the product and returns change", b:0},
+   {t:"Cancel returns all inserted money", b:0},
+   {t:"Adding UPI payment shouldn't change existing state classes", b:1},
+   {t:"Machine responds to a button press within one second", b:1}
+  ]},
+ {type:"multi", xp:40,
+  learn:"When behaviour depends on 'where we are' in a process, the state itself becomes a class.",
+  q:"Which should be classes or interfaces?",
+  hint:"Six are real. One of them represents 'what mode is the machine in'.",
+  options:[
+   {t:"VendingMachine", ok:true, why:"Context object that holds current state, inventory and balance."},
+   {t:"State (interface)", ok:true, why:"IdleState, HasMoneyState, DispenseState implement it."},
+   {t:"Inventory", ok:true, why:"Maps slot codes to product and quantity."},
+   {t:"Product", ok:true, why:"Name and price."},
+   {t:"Coin / Note (enum)", ok:true, why:"Fixed denominations with values."},
+   {t:"ChangeDispenser", ok:true, why:"Works out which coins to return."},
+   {t:"Hunger", ok:false, why:"Why users buy, not part of the system."},
+   {t:"Vend", ok:false, why:"A verb; it becomes dispense()."}
+  ]},
+ {type:"order", xp:40,
+  learn:"Tracing the state flow proves your design before you code it. Each step is a state transition triggered by a user action.",
+  q:"Put the happy-path flow in order. Tap items to place them; tap a placed item to remove it.",
+  hint:"You can't pick a product before the machine knows you've paid... or can you? In this design money comes first.",
+  items:["Machine is Idle","User inserts money → HasMoney state","User selects product code","Machine checks price and stock","Dispense state: product drops out","Change is returned, back to Idle"]},
+ {type:"quiz", xp:50,
+  learn:"The State pattern replaces giant switch statements on a 'status' field with one class per state.",
+  q:"Choose the best design choice.",
+  hint:"Think about what varies: behaviour per mode, and who handles each denomination.",
+  qs:[
+   {q:"insertCoin(), selectProduct() and cancel() behave completely differently depending on whether money is in. What pattern fits?", opts:["Strategy","State","Singleton","Facade"], a:1, why:"Each state class implements every action; invalid actions throw or no-op. The machine just delegates to currentState."},
+   {q:"To return ₹70 change, a ₹50 handler takes what it can, then passes the rest to ₹20, then ₹10.", opts:["Chain of Responsibility","Observer","Builder","Iterator"], a:0, why:"Each denomination handler handles part of the request and forwards the remainder. Same idea as ATM cash dispensing."},
+   {q:"State vs Strategy: what's the key difference?", opts:["They are the same pattern","States usually trigger transitions to other states; strategies are picked from outside and don't switch themselves","Strategy is only for sorting","State requires inheritance, Strategy forbids it"], a:1, why:"Structurally similar, different intent. A state knows the next state; a strategy is chosen by the caller."}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Money systems must fail safe: when in doubt, refund.",
+  q:"How would you handle these?",
+  hint:"Never take money without delivering something.",
+  qs:[
+   {q:"The machine can't make exact change for the purchase.", opts:["Dispense and keep the extra","Check change availability before dispensing; if impossible, refund and ask for exact amount","Dispense nothing and keep the money","Give a random coin"], a:1, why:"Validate change before committing the sale. Mention it as a pre-condition in the HasMoney state."},
+   {q:"Power cuts out mid-transaction.", opts:["Lose the transaction","Persist the current state and balance so the machine can refund on restart","Dispense twice to be safe","Ignore it"], a:1, why:"Persist the inserted balance; on boot, a recovery step refunds or resumes."}
+  ]},
+ {type:"code", xp:30,
+  learn:"The context class stays tiny: it holds data and delegates every action to the current state.",
+  q:"Read the skeleton and claim your XP.",
+  code:`enum Coin { ONE(1), FIVE(5), TEN(10), TWENTY(20); final int value; }
+
+interface State {
+    void insertMoney(VendingMachine m, int amount);
+    void selectProduct(VendingMachine m, String code);
+    void cancel(VendingMachine m);
+}
+
+class IdleState implements State {
+    public void insertMoney(VendingMachine m, int amt) {
+        m.balance += amt;
+        m.setState(new HasMoneyState());
+    }
+    public void selectProduct(VendingMachine m, String c) { throw new IllegalStateException("Insert money first"); }
+    public void cancel(VendingMachine m) { /* nothing to refund */ }
+}
+
+class HasMoneyState implements State {
+    public void insertMoney(VendingMachine m, int amt) { m.balance += amt; }
+    public void selectProduct(VendingMachine m, String code) {
+        Product p = m.inventory.get(code);
+        if (p == null || m.inventory.qty(code) == 0) throw new SoldOutException();
+        if (m.balance < p.price) throw new InsufficientFundsException();
+        if (!m.changer.canReturn(m.balance - p.price)) { cancel(m); return; }
+        m.setState(new DispenseState(code));
+        m.dispense();
+    }
+    public void cancel(VendingMachine m) { m.refundAll(); m.setState(new IdleState()); }
+}
+
+class VendingMachine {
+    State state = new IdleState();
+    Inventory inventory; ChangeDispenser changer; int balance;
+    void setState(State s) { this.state = s; }
+    void insertMoney(int amt)   { state.insertMoney(this, amt); }
+    void selectProduct(String c){ state.selectProduct(this, c); }
+    void cancel()               { state.cancel(this); }
+}`,
+  notes:["VendingMachine has no if-else on status: it forwards every call to state.","Invalid actions (select before paying) fail inside the state that forbids them.","ChangeDispenser can be a chain of denomination handlers, checked before dispensing."]}
+ ]
+},
+/* =================== 3. SPLITWISE =================== */
+{
+ id:"splitwise", title:"Splitwise", level:"Medium", patterns:"Strategy, Factory, Observer",
+ tagline:"Money, groups and rounding. Great practice for validation and clean extension points.",
+ prompt:"Design an expense-sharing app like Splitwise.",
+ stages:[
+ {type:"multi", xp:40,
+  learn:"For apps with money, clarify the math: what splits are allowed, how balances are shown, and whether debts are simplified.",
+  q:"Which questions are worth asking?",
+  hint:"Five of these change your model.",
+  options:[
+   {t:"Which split types: equal, exact amounts, percentages?", ok:true, why:"Directly decides your Split hierarchy."},
+   {t:"Do we support groups, or only one-to-one expenses?", ok:true, why:"Adds Group and group-level balances."},
+   {t:"Should we simplify debts (A owes B owes C → A owes C)?", ok:true, why:"A separate algorithm, often a follow-up."},
+   {t:"Multiple currencies?", ok:true, why:"Good to explicitly scope out or design for."},
+   {t:"Can expenses be edited or deleted later?", ok:true, why:"Balances must be reversible, which affects how you store them."},
+   {t:"Which font should the app use?", ok:false, why:"UI concern."},
+   {t:"Should the backend be on AWS?", ok:false, why:"Infrastructure, not object design."}
+  ]},
+ {type:"classify", xp:40, buckets:FN_NF,
+  learn:"Invariants that must always hold (like balances summing to zero) are non-functional correctness requirements.",
+  q:"Sort each requirement.",
+  hint:"Look for 'must always' and 'without changing'.",
+  items:[
+   {t:"Add an expense paid by one user and shared by others", b:0},
+   {t:"Split by exact amounts or percentages", b:0},
+   {t:"Show how much each user owes or is owed", b:0},
+   {t:"Across all users, balances must always sum to zero", b:1},
+   {t:"A new split type can be added without editing existing ones", b:1},
+   {t:"Settle up a debt between two users", b:0}
+  ]},
+ {type:"multi", xp:40,
+  learn:"Separate the record of what happened (Expense) from how it is divided (Split) and the running totals (BalanceSheet).",
+  q:"Which should be classes or interfaces?",
+  hint:"Six are real.",
+  options:[
+   {t:"User", ok:true, why:"Has id, name and a balance view."},
+   {t:"Group", ok:true, why:"A set of users plus their expenses."},
+   {t:"Expense", ok:true, why:"Amount, payer, and a list of splits."},
+   {t:"Split (abstract) with EqualSplit, ExactSplit, PercentSplit", ok:true, why:"Each knows how to validate itself."},
+   {t:"BalanceSheet", ok:true, why:"Map of who owes whom how much."},
+   {t:"ExpenseService", ok:true, why:"Orchestrates validation and balance updates."},
+   {t:"Restaurant", ok:false, why:"Just a description on the expense."},
+   {t:"Friendship", ok:false, why:"Not needed unless the prompt asks for it."}
+  ]},
+ {type:"classify", xp:40, buckets:REL,
+  learn:"Watch the difference between has-a and uses: a Group holds users, but a service only calls a strategy.",
+  q:"Pick the relationship for each pair.",
+  hint:"Exactly two pairs are inheritance.",
+  items:[
+   {t:"EqualSplit → Split", b:0},
+   {t:"Group → User", b:1},
+   {t:"Expense → Split", b:1},
+   {t:"ExpenseService → SplitFactory", b:2},
+   {t:"PercentSplit → Split", b:0},
+   {t:"ExpenseService → BalanceSheet", b:2}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Factory decides which object to create; Strategy decides which algorithm to run; Observer tells others something happened.",
+  q:"Choose the best design choice.",
+  hint:"Creating, computing, and notifying are three different jobs.",
+  qs:[
+   {q:"The API receives splitType = 'PERCENT' and must create the right Split objects.", opts:["Factory","Adapter","Decorator","Memento"], a:0, why:"A SplitFactory hides the switch on type in one place; callers just ask for a split."},
+   {q:"Different split types compute each person's share differently, and more types will come.", opts:["Singleton","Strategy","Composite","Proxy"], a:1, why:"Each split type is a strategy for computing shares; add a class, don't edit existing ones (Open/Closed)."},
+   {q:"When an expense is added, every member should get a push notification and an email.", opts:["Observer","Builder","State","Flyweight"], a:0, why:"ExpenseService publishes an event; notifiers subscribe. Adding SMS later is one new class."}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Money bugs are usually rounding bugs. Store paise (integers), never floating-point rupees.",
+  q:"How would you handle these?",
+  hint:"Integers, validation, locks.",
+  qs:[
+   {q:"₹100 split equally among 3 people.", opts:["Give everyone 33.333…","Work in paise: 3333, 3333, 3334 — give the remainder to one person","Round all to 33 and lose ₹1","Reject the expense"], a:1, why:"Integer paise plus a deterministic remainder rule keeps totals exact."},
+   {q:"Percent splits add up to 99%.", opts:["Accept it","Validate in the Split before saving and reject with a clear error","Scale silently","Give the 1% to the payer"], a:1, why:"Each Split type owns a validate() method; the service calls it before touching balances."},
+   {q:"Two members add expenses to the same group at the same time.", opts:["Nothing can go wrong","Update the group's balance sheet under a lock (or an atomic DB transaction)","Process only one per day","Ask users to retry"], a:1, why:"Read-modify-write on balances must be atomic, or one update overwrites the other."}
+  ]},
+ {type:"code", xp:30,
+  learn:"Keep validation inside the split types and balance math inside the service.",
+  q:"Read the skeleton and claim your XP.",
+  code:`enum SplitType { EQUAL, EXACT, PERCENT }
+
+abstract class Split {
+    User user; long amountPaise;
+    abstract boolean validate(Expense e);
+}
+class EqualSplit extends Split { boolean validate(Expense e) { return true; } }
+class PercentSplit extends Split {
+    double percent;
+    boolean validate(Expense e) { /* all percents sum to 100 */ return true; }
+}
+
+class Expense {
+    String id; User paidBy; long amountPaise;
+    List<Split> splits; SplitType type;
+}
+
+class SplitFactory {
+    static List<Split> create(SplitType t, long total, List<User> users, List<Double> values) {
+        switch (t) {
+            case EQUAL:   return equal(total, users);   // remainder goes to first user
+            case EXACT:   return exact(users, values);
+            case PERCENT: return percent(total, users, values);
+        }
+        throw new IllegalArgumentException();
+    }
+}
+
+class BalanceSheet {
+    // balances.get(a).get(b) > 0 means b owes a
+    Map<User, Map<User, Long>> balances = new HashMap<>();
+}
+
+class ExpenseService {
+    BalanceSheet sheet; List<ExpenseListener> listeners;
+
+    synchronized void addExpense(Expense e) {
+        for (Split s : e.splits) if (!s.validate(e)) throw new InvalidSplitException();
+        for (Split s : e.splits) {
+            if (s.user == e.paidBy) continue;
+            sheet.add(e.paidBy, s.user, s.amountPaise);   // updates both directions
+        }
+        listeners.forEach(l -> l.onExpenseAdded(e));
+    }
+}`,
+  notes:["Amounts are long paise, so no floating-point drift.","Validation lives in each Split; the service stays generic.","Debt simplification is a separate class that reads BalanceSheet and greedily matches biggest creditor with biggest debtor."]}
+ ]
+},
+/* =================== 4. ELEVATOR =================== */
+{
+ id:"elevator", title:"Elevator System", level:"Medium", patterns:"Strategy, State, Observer",
+ tagline:"Scheduling, states and safety. Interviewers love to dig into the dispatch algorithm.",
+ prompt:"Design an elevator system for a building.",
+ stages:[
+ {type:"multi", xp:40,
+  learn:"For control systems, ask about scale, the scheduling goal, and the unusual modes (maintenance, emergency).",
+  q:"Which questions are worth asking?",
+  hint:"Five matter for the design.",
+  options:[
+   {t:"How many elevators and floors?", ok:true, why:"One elevator needs no dispatcher; many do."},
+   {t:"Is there a weight or passenger capacity limit?", ok:true, why:"Adds an overload check before closing doors."},
+   {t:"What should scheduling optimise: wait time, travel time, energy?", ok:true, why:"Decides which dispatch strategy you implement first."},
+   {t:"Do we need maintenance or emergency modes?", ok:true, why:"New elevator states."},
+   {t:"Are there separate up/down buttons on each floor?", ok:true, why:"Shapes the Request model: direction matters."},
+   {t:"What music plays inside?", ok:false, why:"No design impact."},
+   {t:"What colour are the buttons?", ok:false, why:"Visual detail."}
+  ]},
+ {type:"classify", xp:40, buckets:FN_NF,
+  learn:"Safety rules and performance targets are non-functional; they constrain how features behave.",
+  q:"Sort each requirement.",
+  hint:"Three are qualities: speed, resilience, safety.",
+  items:[
+   {t:"Call an elevator from a floor with up or down", b:0},
+   {t:"Choose a destination floor from inside the car", b:0},
+   {t:"Display current floor and direction", b:0},
+   {t:"Dispatch should keep average wait time low", b:1},
+   {t:"If one elevator fails, others keep serving all floors", b:1},
+   {t:"Doors must never open while the car is moving", b:1}
+  ]},
+ {type:"multi", xp:40,
+  learn:"Separate the decision-maker (controller/dispatcher) from the things that move (cars) and the inputs (requests, buttons).",
+  q:"Which should be classes or interfaces?",
+  hint:"Seven are real.",
+  options:[
+   {t:"ElevatorController", ok:true, why:"Receives requests and assigns them."},
+   {t:"ElevatorCar", ok:true, why:"Current floor, direction, state and stop queue."},
+   {t:"Request", ok:true, why:"Source floor, direction or destination."},
+   {t:"DispatchStrategy", ok:true, why:"Picks which car serves a request."},
+   {t:"Door", ok:true, why:"Open/close with safety checks."},
+   {t:"Display", ok:true, why:"Observes car position."},
+   {t:"HallButton / CarButton", ok:true, why:"Create requests."},
+   {t:"Steel cable", ok:false, why:"Physical, no software behaviour."},
+   {t:"Going up", ok:false, why:"A direction value, so an enum."}
+  ]},
+ {type:"order", xp:40,
+  learn:"Walk one request end to end. If any step has no owner in your class diagram, you're missing a class.",
+  q:"Order the lifecycle of a hall call.",
+  hint:"It starts with a human and ends with a door.",
+  items:["Passenger presses Up on floor 4","HallButton creates a Request(4, UP)","Controller asks DispatchStrategy for the best car","Chosen car adds floor 4 to its stop queue","Car moves floor by floor, updating Displays","Car stops at 4 and Door opens","Passenger presses 9 inside; a new stop is added"]},
+ {type:"quiz", xp:50,
+  learn:"Elevators combine three patterns naturally: Strategy for dispatch, State for each car, Observer for displays.",
+  q:"Choose the best design choice.",
+  hint:"Swap, mode, notify.",
+  qs:[
+   {q:"We want to try 'nearest car' now and 'least loaded car' later without touching the controller.", opts:["Strategy","Adapter","Singleton","Builder"], a:0, why:"DispatchStrategy interface; the controller holds one and can switch at runtime."},
+   {q:"A car is Idle, MovingUp, MovingDown or Maintenance, and reacts to requests differently in each.", opts:["Observer","State","Prototype","Facade"], a:1, why:"Each state decides whether to accept stops and what to do next."},
+   {q:"Floor displays and the lobby screen must update whenever any car changes floor.", opts:["Observer","Command","Template Method","Iterator"], a:0, why:"Cars publish position changes; displays subscribe."}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"The LOOK algorithm: keep moving in the current direction while there are stops ahead, then reverse. It prevents starvation and zig-zagging.",
+  q:"How would you handle these?",
+  hint:"Finish the direction you're going.",
+  qs:[
+   {q:"A car going up is at floor 3. Pending stops: 5 (up) and 2 (down). Which order?", opts:["2 then 5","5 then 2","Whichever was pressed first","Wait for more requests"], a:1, why:"LOOK continues upward to 5, then reverses for 2. Serving 2 first wastes a reversal."},
+   {q:"The car is over its weight limit.", opts:["Move anyway","Keep doors open, sound an alarm, and refuse to move until load drops","Drop a passenger at the next floor","Switch off the system"], a:1, why:"Safety checks gate the 'close door' transition."},
+   {q:"Two hall calls arrive at the controller at the same time.", opts:["Process them in a thread-safe queue so assignment is consistent","Assign both to every car","Drop the second one","Use two controllers"], a:0, why:"A concurrent queue (or synchronized assign) prevents double assignment and lost requests."}
+  ]},
+ {type:"code", xp:30,
+  learn:"Use two priority queues per car (up stops ascending, down stops descending) to implement LOOK cleanly.",
+  q:"Read the skeleton and claim your XP.",
+  code:`enum Direction { UP, DOWN, IDLE }
+enum CarState { IDLE, MOVING, DOORS_OPEN, MAINTENANCE }
+
+class Request { int floor; Direction dir; }
+
+class ElevatorCar {
+    int id, currentFloor; Direction dir = Direction.IDLE; CarState state = CarState.IDLE;
+    PriorityQueue<Integer> upStops = new PriorityQueue<>();
+    PriorityQueue<Integer> downStops = new PriorityQueue<>(Comparator.reverseOrder());
+    List<FloorListener> listeners = new ArrayList<>();
+
+    synchronized void addStop(int floor) {
+        if (floor > currentFloor) upStops.add(floor); else downStops.add(floor);
+    }
+    void step() {                       // called on each tick
+        Integer next = (dir != Direction.DOWN) ? upStops.peek() : downStops.peek();
+        if (next == null) { reverseOrIdle(); return; }
+        currentFloor += Integer.compare(next, currentFloor);
+        listeners.forEach(l -> l.onFloor(id, currentFloor));
+        if (currentFloor == next) { pollStop(); openDoors(); }
+    }
+}
+
+interface DispatchStrategy { ElevatorCar pick(List<ElevatorCar> cars, Request r); }
+class NearestCarStrategy implements DispatchStrategy {
+    public ElevatorCar pick(List<ElevatorCar> cars, Request r) {
+        // prefer idle cars or cars already moving toward r in the same direction
+        return cars.stream().min(Comparator.comparingInt(c -> cost(c, r))).get();
+    }
+}
+
+class ElevatorController {
+    List<ElevatorCar> cars; DispatchStrategy strategy;
+    synchronized void submit(Request r) {
+        strategy.pick(cars, r).addStop(r.floor);
+    }
+}`,
+  notes:["The controller only routes; each car runs its own LOOK loop with two queues.","Displays implement FloorListener and never poll.","Maintenance mode: the strategy skips cars whose state is MAINTENANCE."]}
+ ]
+},
+/* =================== 5. BOOKMYSHOW =================== */
+{
+ id:"bms", title:"BookMyShow", level:"Hard", patterns:"Strategy, Adapter, Dependency Inversion",
+ tagline:"The interview favourite for concurrency: thousands of people, one seat, no double booking.",
+ prompt:"Design a movie ticket booking system like BookMyShow.",
+ stages:[
+ {type:"multi", xp:40,
+  learn:"For booking systems, ask about the hierarchy (city → theatre → screen → show) and about holds, timeouts and refunds.",
+  q:"Which questions are worth asking?",
+  hint:"Five shape the design; two are about something else entirely.",
+  options:[
+   {t:"Multiple cities and theatres, each with several screens?", ok:true, why:"Defines the containment hierarchy."},
+   {t:"Do seat types (recliner, premium) have different prices?", ok:true, why:"Adds SeatType and per-show pricing."},
+   {t:"How long is a seat held while the user pays?", ok:true, why:"Leads to a lock with a timeout (TTL)."},
+   {t:"Are cancellations and refunds supported?", ok:true, why:"Adds booking states and a refund path."},
+   {t:"Which payment methods: UPI, cards, wallets?", ok:true, why:"Hints at an adapter over third-party gateways."},
+   {t:"Which codec should trailers be encoded in?", ok:false, why:"Media streaming isn't part of booking."},
+   {t:"What popcorn flavours are sold?", ok:false, why:"Out of scope unless food ordering is asked."}
+  ]},
+ {type:"classify", xp:40, buckets:FN_NF,
+  learn:"'Never double book' is the most important non-functional requirement here. Say it out loud early.",
+  q:"Sort each requirement.",
+  hint:"Two are qualities.",
+  items:[
+   {t:"Search movies playing in a city", b:0},
+   {t:"View the seat map for a show", b:0},
+   {t:"Hold selected seats and pay to confirm", b:0},
+   {t:"The same seat must never be sold twice for a show", b:1},
+   {t:"Seat map loads quickly even at a blockbuster release", b:1},
+   {t:"Cancel a booking and receive a refund", b:0}
+  ]},
+ {type:"multi", xp:40,
+  learn:"The key insight: a Seat is physical and permanent, but its status belongs to one show. That needs its own class.",
+  q:"Which should be classes or interfaces?",
+  hint:"Eight are real. Watch for the one that joins Seat and Show.",
+  options:[
+   {t:"Movie", ok:true, why:"Title, duration, language."},
+   {t:"Theatre", ok:true, why:"Belongs to a city and has screens."},
+   {t:"Screen", ok:true, why:"Has a fixed seat layout."},
+   {t:"Show", ok:true, why:"A movie on a screen at a time."},
+   {t:"Seat", ok:true, why:"Physical seat: row, number, type."},
+   {t:"ShowSeat", ok:true, why:"Seat status and price for one show."},
+   {t:"Booking", ok:true, why:"User, show, seats, status."},
+   {t:"SeatLockProvider", ok:true, why:"Holds seats with a timeout."},
+   {t:"Actor biography", ok:false, why:"Catalog content, not booking logic."},
+   {t:"Watching", ok:false, why:"A verb with no system behaviour."}
+  ]},
+ {type:"classify", xp:40, buckets:REL,
+  learn:"Has-a can be strong (composition: Screen dies, its seats die) or weak (association: Show references a Movie that lives on). For the interview, call both has-a and mention which is which.",
+  q:"Pick the relationship for each pair.",
+  hint:"Services 'use' providers and gateways.",
+  items:[
+   {t:"Theatre → Screen", b:1},
+   {t:"Screen → Seat", b:1},
+   {t:"ReclinerSeat → Seat", b:0},
+   {t:"Booking → ShowSeat", b:1},
+   {t:"BookingService → SeatLockProvider", b:2},
+   {t:"BookingService → PaymentGateway", b:2}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Dependency Inversion: high-level services depend on interfaces, so you can swap an in-memory lock for Redis without touching business logic.",
+  q:"Choose the best design choice.",
+  hint:"One is about modelling, one about third-party APIs, one about swappable infrastructure.",
+  qs:[
+   {q:"Why model ShowSeat separately from Seat?", opts:["To save memory","Because availability and price change per show, while the physical seat doesn't","Because Seat must be immutable in Java","It isn't needed"], a:1, why:"Seat A7 is free at 6 pm and booked at 9 pm. That status lives on ShowSeat."},
+   {q:"Razorpay and Paytm have different SDKs, but BookingService wants one pay() method.", opts:["Adapter","Observer","Singleton","Prototype"], a:0, why:"Each adapter wraps one provider's SDK behind your PaymentGateway interface."},
+   {q:"SeatLockProvider is in-memory today and Redis tomorrow.", opts:["Hard-code Redis now","Make BookingService depend on a SeatLockProvider interface and inject the implementation","Copy the service for each","Use a static utility class"], a:1, why:"That's Dependency Inversion: the service depends on the abstraction, not the vendor."}
+  ]},
+ {type:"quiz", xp:50,
+  learn:"Booking has a two-phase flow: lock seats (short TTL), then confirm after payment. Each phase needs its own failure handling.",
+  q:"How would you handle these?",
+  hint:"Atomic lock, TTL, and re-check before confirming.",
+  qs:[
+   {q:"Two users tap seat A7 for the same show at the same moment.", opts:["Both get it; sort it out at the cinema","Lock atomically (e.g. synchronized check-and-set, or Redis SET NX with TTL); the second user gets 'seat unavailable'","Give it to the older account","Pick randomly after payment"], a:1, why:"Only one lock can win. The TTL frees seats if the user walks away."},
+   {q:"Payment succeeds, but the seat lock expired a second earlier and someone else took the seat.", opts:["Confirm anyway","Re-validate lock ownership before confirming; if lost, mark the booking failed and auto-refund","Book a random other seat","Ignore the payment"], a:1, why:"Always verify you still own the lock at confirm time, and make refunds automatic."},
+   {q:"Optimistic or pessimistic locking for the final DB write?", opts:["Neither is needed","Pessimistic everywhere","Optimistic with a version column on ShowSeat works well since the soft lock already filters most conflicts","Delete the row and recreate it"], a:2, why:"The TTL lock handles contention; a version check on commit catches the rare race cheaply."}
+  ]},
+ {type:"code", xp:30,
+  learn:"The heart of the design is lock → pay → confirm, with ownership checked at each step.",
+  q:"Read the skeleton and claim your XP.",
+  code:`enum SeatStatus { AVAILABLE, LOCKED, BOOKED }
+enum BookingStatus { PENDING, CONFIRMED, FAILED, CANCELLED }
+
+class Seat { String id; int row, number; SeatType type; }
+class Show { String id; Movie movie; Screen screen; LocalDateTime start; }
+class ShowSeat { Show show; Seat seat; SeatStatus status; long pricePaise; int version; }
+
+interface SeatLockProvider {
+    boolean lock(String showId, List<String> seatIds, String userId, Duration ttl);
+    boolean isLockedBy(String showId, String seatId, String userId);
+    void unlock(String showId, List<String> seatIds, String userId);
+}
+
+class InMemorySeatLockProvider implements SeatLockProvider {
+    // key "showId:seatId" -> lock with owner and expiry
+    private final Map<String, SeatLock> locks = new ConcurrentHashMap<>();
+    public synchronized boolean lock(String show, List<String> seats, String user, Duration ttl) {
+        for (String s : seats) if (isHeldByOther(show, s, user)) return false;  // all or nothing
+        for (String s : seats) locks.put(show + ":" + s, new SeatLock(user, now().plus(ttl)));
+        return true;
+    }
+}
+
+interface PaymentGateway { PaymentResult pay(long amountPaise, String userId); }
+class RazorpayAdapter implements PaymentGateway { /* wraps the Razorpay SDK */ }
+
+class BookingService {
+    SeatLockProvider locks; PaymentGateway payments; ShowSeatRepository repo;
+
+    Booking hold(String user, Show show, List<String> seatIds) {
+        if (!locks.lock(show.id, seatIds, user, Duration.ofMinutes(10)))
+            throw new SeatUnavailableException();
+        return Booking.pending(user, show, seatIds);
+    }
+
+    Booking confirm(Booking b) {
+        PaymentResult r = payments.pay(b.totalPaise(), b.userId);
+        boolean stillMine = b.seatIds.stream().allMatch(s -> locks.isLockedBy(b.showId, s, b.userId));
+        if (!r.success || !stillMine) { refundIfPaid(r); return b.fail(); }
+        repo.markBooked(b.showId, b.seatIds);       // version check on each ShowSeat
+        locks.unlock(b.showId, b.seatIds, b.userId);
+        return b.confirm();
+    }
+}`,
+  notes:["lock() is all-or-nothing: either every chosen seat is held or none are.","confirm() re-checks lock ownership after payment, then commits with an optimistic version check.","Swapping InMemorySeatLockProvider for a Redis one changes zero lines in BookingService."]}
+ ]
+}
+];
+
+/* ------------------------------------------------------------------ */
+/*  STATE                                                              */
+/* ------------------------------------------------------------------ */
+const KEY = "lld-quest-v1";
+const def = () => ({xp:0, streak:0, bestStreak:0, done:{}, best:{}, badges:[], patternPerfect:[]});
+let S = load();
+function load(){
+  try{ const r = localStorage.getItem(KEY); if(r) return Object.assign(def(), JSON.parse(r)); }catch(e){}
+  return def();
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+let R = null; // current run
+
+const $ = s => document.querySelector(s);
+const app = $("#app");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+function levelInfo(xp){
+  let i = 0; while(i < LEVELS.length-1 && xp >= LEVELS[i+1][0]) i++;
+  const cur = LEVELS[i], nxt = LEVELS[i+1];
+  const pct = nxt ? (xp-cur[0])/(nxt[0]-cur[0])*100 : 100;
+  return {name:cur[1], pct, next: nxt ? nxt[0] : null};
+}
+function renderBar(){
+  const L = levelInfo(S.xp);
+  $("#rank-name").textContent = L.name;
+  $("#xpfill").style.width = L.pct + "%";
+  $("#xpbar").setAttribute("aria-valuenow", Math.round(L.pct));
+  $("#xpnum").textContent = L.next ? `${S.xp} / ${L.next} XP` : `${S.xp} XP · max rank`;
+  const st = $("#streak"); st.textContent = "🔥 " + S.streak; st.classList.toggle("hot", S.streak >= 3);
+  $("#badgecount").textContent = "🏅 " + S.badges.length;
+}
+let toastT;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 2800);
+}
+function award(id){
+  if(S.badges.includes(id)) return false;
+  S.badges.push(id); const b = BADGES.find(x=>x.id===id);
+  toast(`${b.ic}  Badge unlocked: ${b.n}`);
+  if(R) R.newBadges.push(id);
+  return true;
+}
+function starsHTML(n){ let h=""; for(let i=0;i<3;i++) h += i<n ? "★" : '<span class="off">★</span>'; return `<span class="stars" aria-label="${n} of 3 stars">${h}</span>`; }
+const unlocked = i => i===0 || !!S.done[MISSIONS[i-1].id];
+
+/* ------------------------------------------------------------------ */
+/*  HOME                                                               */
+/* ------------------------------------------------------------------ */
+function home(){
+  R = null; renderBar();
+  const nextIdx = MISSIONS.findIndex((m,i)=>unlocked(i) && !S.done[m.id]);
+  const ctaIdx = nextIdx === -1 ? 0 : nextIdx;
+  const started = Object.keys(S.done).length > 0;
+  app.innerHTML = `
+  <section class="hero fade">
+    <div>
+      <h1>Turn a one-line prompt into a working class design.</h1>
+      <p>Five classic low-level design interviews, played one step at a time. Ask the right questions, find the classes, connect them, pick patterns, guard the edge cases, then read the code.</p>
+      <button class="btn amber" data-play="${ctaIdx}">${nextIdx===-1 ? "Replay Parking Lot" : (started ? "Continue: " : "Start: ") + MISSIONS[ctaIdx].title}</button>
+    </div>
+    <div class="prompt-card" aria-hidden="true">
+      <span class="who">Interviewer:</span>
+      <span class="type">“Design a parking lot.”</span>
+      <span class="who" style="margin-top:12px">You, after this course:</span>
+      <span class="type">“Before I draw anything, can I ask a few questions? How many floors, which vehicle types, and how is pricing calculated?”</span> <span class="caret"></span>
+    </div>
+  </section>
+
+  <div class="sec-h"><h2>Missions</h2><p>Finish one to unlock the next</p></div>
+  <div class="map">
+    ${MISSIONS.map((m,i)=>{
+      const ok = unlocked(i), d = S.done[m.id];
+      return `${i ? '<div class="link" aria-hidden="true"></div>' : ""}
+      <div class="uml-wrap">
+        <button class="uml ${ok?"":"locked"}" data-play="${i}" ${ok?"":"disabled"} aria-label="${esc(m.title)}${ok?"":" (locked)"}">
+          <div class="uml-head"><span class="stereo">«${m.level}»</span><b>${esc(m.title)}</b></div>
+          <div class="uml-sec"><div class="tagline">${esc(m.tagline)}</div></div>
+          <div class="uml-sec"><div>- patterns: ${esc(m.patterns)}</div><div>- stages: 7 · xp: ${m.stages.reduce((a,s)=>a+s.xp,0)}</div></div>
+          <div class="uml-sec"><div>${ok ? (d ? "+ replay()" : "+ play()") : "🔒 locked"}</div>${d ? starsHTML(d.stars) : starsHTML(0)}</div>
+        </button>
+      </div>`;
+    }).join("")}
+  </div>
+
+  <div class="sec-h"><h2>The playbook</h2><p>The seven steps every mission follows, timed for a 45-minute round</p></div>
+  <ol class="playbook">
+    ${STEPS.map(s=>`<li><span class="min">${s.min}</span><h3>${s.n}</h3><p>${s.d}</p></li>`).join("")}
+  </ol>
+
+  <div class="sec-h"><h2>Badges</h2><p>${S.badges.length} of ${BADGES.length} earned</p></div>
+  <div class="badges">
+    ${BADGES.map(b=>`<div class="badge ${S.badges.includes(b.id)?"":"off"}"><span class="ic">${b.ic}</span><div><b>${b.n}</b><small>${b.d}</small></div></div>`).join("")}
+  </div>
+  <button class="reset" id="reset">Reset all progress</button>`;
+  app.querySelectorAll("[data-play]").forEach(b=>b.addEventListener("click",()=>start(+b.dataset.play)));
+  $("#reset").addEventListener("click",()=>{ if(confirm("Reset XP, stars and badges?")){ S = def(); save(); home(); } });
+  window.scrollTo(0,0);
+}
+
+/* ------------------------------------------------------------------ */
+/*  MISSION                                                            */
+/* ------------------------------------------------------------------ */
+function start(i){
+  if(!unlocked(i)) return;
+  R = {mi:i, m:MISSIONS[i], si:0, scores:[], earned:0, hintsUsed:0, newBadges:[]};
+  S.best[R.m.id] = S.best[R.m.id] || [];
+  stage();
+}
+
+function stage(){
+  const m = R.m, st = m.stages[R.si];
+  R.checked = false; R.hint = false;
+  if(st.type==="multi"){ R.ans = new Set(); R.perm = shuffle(st.options.map((_,k)=>k)); }
+  if(st.type==="classify"){ R.ans = {}; R.perm = shuffle(st.items.map((_,k)=>k)); }
+  if(st.type==="order"){ R.ans = []; R.perm = shuffle(st.items.map((_,k)=>k)); }
+  if(st.type==="quiz"){ R.ans = {}; }
+  renderBar();
+  app.innerHTML = `
+  <div class="m-top">
+    <button class="back" id="back">← Missions</button>
+    <h1>${esc(m.title)}</h1>
+  </div>
+  <p class="m-prompt">Prompt: “${esc(m.prompt)}”</p>
+  <div class="rail-scroll"><ol class="rail">
+    ${STEPS.map((s,k)=>{
+      const sc = R.scores[k]; let c = "";
+      if(k < R.si) c = "done" + (sc===1 ? " perfect" : "");
+      if(k === R.si) c = "now";
+      return `<li class="${c}" ${k===R.si?'aria-current="step"':""}><span class="dot">${k<R.si ? (sc===1?"★":"✓") : k+1}</span>${s.n}</li>`;
+    }).join("")}
+  </ol></div>
+  <section class="stage fade" id="stage">
+    <div class="stage-h"><h2>Step ${R.si+1}: ${STEPS[R.si].n}</h2><span class="xp-tag">up to ${st.xp} XP${S.streak>=3?" · combo ×1.2":""}</span></div>
+    <div class="stage-b">
+      <div class="concept"><b>Concept</b><p>${esc(st.learn)}</p></div>
+      <p class="q">${esc(st.q)}</p>
+      <div id="hintbox"></div>
+      <div id="body">${body(st)}</div>
+      <div id="fb"></div>
+      <div class="actions" id="acts"></div>
+    </div>
+  </section>`;
+  $("#back").addEventListener("click", ()=>{ if(R.si===0 || confirm("Leave this mission? XP already earned is kept.")) home(); });
+  wire(st); actions(st);
+  window.scrollTo(0,0);
+}
+
+function body(st){
+  if(st.type==="multi") return `<div class="opts">${R.perm.map(k=>{
+    const o = st.options[k];
+    return `<button class="opt" data-k="${k}" aria-pressed="false"><span class="box" aria-hidden="true"></span><span>${esc(o.t)}<span class="why" hidden>${esc(o.why)}</span></span></button>`;
+  }).join("")}</div>`;
+  if(st.type==="classify") return `<div class="cls">${R.perm.map(k=>{
+    const it = st.items[k];
+    return `<div class="cls-row" data-row="${k}"><span class="t">${esc(it.t)}<span class="fix" hidden></span></span>
+      <div class="seg" role="group" aria-label="${esc(it.t)}">${st.buckets.map((b,bi)=>`<button data-k="${k}" data-b="${bi}" aria-pressed="false">${b}</button>`).join("")}</div></div>`;
+  }).join("")}</div>`;
+  if(st.type==="order") return orderHTML(st);
+  if(st.type==="quiz") return `<div class="qz">${st.qs.map((q,qi)=>`
+    <div class="qz-item" data-q="${qi}"><p>${qi+1}. ${esc(q.q)}</p>
+      <div class="opts" role="radiogroup">${q.opts.map((o,oi)=>`<button class="opt" role="radio" data-q="${qi}" data-o="${oi}" aria-pressed="false" aria-checked="false"><span class="box" aria-hidden="true"></span><span>${esc(o)}</span></button>`).join("")}</div>
+      <p class="qz-why" hidden>${esc(q.why)}</p>
+    </div>`).join("")}</div>`;
+  if(st.type==="code") return `<pre class="code"><code>${hl(st.code)}</code></pre>
+    <h3 style="font-size:17px;margin-bottom:8px">Walkthrough</h3>
+    <ul class="notes">${st.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>`;
+}
+
+function orderHTML(st){
+  const placed = new Set(R.ans);
+  const pool = R.perm.filter(k=>!placed.has(k));
+  return `<div class="ord">
+    <div><h3>Steps to place</h3><div class="pool">${pool.length ? pool.map(k=>`<button class="tile" data-add="${k}">${esc(st.items[k])}</button>`).join("") : '<span class="empty">All placed. Check your answer.</span>'}</div></div>
+    <div><h3>Your sequence</h3><ol class="seq" style="list-style:none;margin:0">${R.ans.length ? R.ans.map((k,pos)=>`<li style="display:contents"><button class="tile" data-rm="${pos}" ${R.checked?"disabled":""}>${esc(st.items[k])}</button></li>`).join("") : '<li class="empty">Tap a step on the left to start.</li>'}</ol></div>
+  </div>`;
+}
+
+function hl(src){
+  const KW = /\b(public|private|protected|static|final|class|interface|enum|extends|implements|new|return|if|else|for|throw|synchronized|void|boolean|int|long|double|switch|case|null|this|continue|true|false)\b/g;
+  const TY = /\b(List|Map|HashMap|ArrayList|PriorityQueue|ConcurrentHashMap|LocalDateTime|Duration|String|Comparator|Integer)\b/g;
+  return src.split("\n").map(line=>{
+    let code = line, cm = "";
+    const ci = line.indexOf("//"), bi = line.indexOf("/*");
+    const cut = [ci,bi].filter(x=>x>=0).sort((a,b)=>a-b)[0];
+    if(cut !== undefined){ code = line.slice(0,cut); cm = line.slice(cut); }
+    const kwOnly = new RegExp("^"+KW.source+"$");
+    code = esc(code).replace(new RegExp(KW.source+"|"+TY.source,"g"), w =>
+      kwOnly.test(w) ? `<span class="kw">${w}</span>` : `<span class="ty">${w}</span>`);
+    return code + (cm ? `<span class="cm">${esc(cm)}</span>` : "");
+  }).join("\n");
+}
+
+function wire(st){
+  const b = $("#body");
+  b.addEventListener("click", e=>{
+    if(R.checked) return;
+    const t = e.target.closest("button"); if(!t) return;
+    if(st.type==="multi"){
+      const k = +t.dataset.k; R.ans.has(k) ? R.ans.delete(k) : R.ans.add(k);
+      t.setAttribute("aria-pressed", R.ans.has(k)); t.querySelector(".box").textContent = R.ans.has(k) ? "✓" : "";
+    }
+    if(st.type==="classify"){
+      const k = +t.dataset.k, bi = +t.dataset.b; R.ans[k] = bi;
+      t.parentElement.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", +x.dataset.b===bi));
+    }
+    if(st.type==="order"){
+      if(t.dataset.add !== undefined) R.ans.push(+t.dataset.add);
+      if(t.dataset.rm !== undefined) R.ans.splice(+t.dataset.rm,1);
+      b.innerHTML = orderHTML(st);
+    }
+    if(st.type==="quiz"){
+      const qi = +t.dataset.q, oi = +t.dataset.o; R.ans[qi] = oi;
+      b.querySelectorAll(`.opt[data-q="${qi}"]`).forEach(x=>{
+        const on = +x.dataset.o===oi; x.setAttribute("aria-pressed",on); x.setAttribute("aria-checked",on);
+        x.querySelector(".box").textContent = on ? "●" : "";
+      });
+    }
+    $("#acts .msg") && ($("#acts .msg").textContent = "");
+  });
+}
+
+function actions(st){
+  const a = $("#acts");
+  if(!R.checked){
+    a.innerHTML = `${st.hint ? `<button class="btn ghost" id="hintb" ${R.hint?"disabled":""}>Show hint (−5 XP)</button>` : ""}
+      <span class="msg" role="alert"></span><span class="sp"></span>
+      <button class="btn amber" id="check">${st.type==="code" ? `Mark as studied (+${st.xp} XP)` : "Check answer"}</button>`;
+    const hb = $("#hintb");
+    hb && hb.addEventListener("click", ()=>{
+      R.hint = true; R.hintsUsed++; hb.disabled = true;
+      $("#hintbox").innerHTML = `<div class="hint fade">💡 ${esc(st.hint)}</div>`;
+    });
+    $("#check").addEventListener("click", ()=>check(st));
+  } else {
+    const last = R.si === R.m.stages.length-1;
+    a.innerHTML = `<span class="sp"></span><button class="btn" id="next">${last ? "Finish mission" : "Next step: " + STEPS[R.si+1].n}</button>`;
+    $("#next").addEventListener("click", ()=>{ if(last) finish(); else { R.si++; stage(); } });
+    $("#next").focus({preventScroll:true});
+  }
+}
+
+function check(st){
+  const msg = $("#acts .msg");
+  let score = 1;
+  const b = $("#body");
+  if(st.type==="multi"){
+    if(R.ans.size===0){ msg.textContent = "Select at least one option."; return; }
+    const total = st.options.filter(o=>o.ok).length;
+    let hit=0, wrong=0;
+    st.options.forEach((o,k)=>{ if(R.ans.has(k)) o.ok ? hit++ : wrong++; });
+    score = Math.max(0,(hit-wrong))/total;
+    b.querySelectorAll(".opt").forEach(el=>{
+      const k = +el.dataset.k, o = st.options[k], sel = R.ans.has(k);
+      el.classList.add("locked");
+      if(sel && o.ok) el.classList.add("ok");
+      else if(sel && !o.ok) el.classList.add("bad");
+      else if(!sel && o.ok) el.classList.add("miss");
+      el.querySelector(".why").hidden = false;
+      if(!sel && o.ok) el.querySelector(".why").textContent = "Missed: " + o.why;
+    });
+  }
+  if(st.type==="classify"){
+    if(Object.keys(R.ans).length < st.items.length){ msg.textContent = "Sort every item before checking."; return; }
+    let c=0;
+    st.items.forEach((it,k)=>{
+      const row = b.querySelector(`[data-row="${k}"]`), good = R.ans[k]===it.b;
+      if(good) c++;
+      row.classList.add(good?"ok":"bad");
+      if(!good){ const f=row.querySelector(".fix"); f.hidden=false; f.textContent = "Answer: " + st.buckets[it.b]; }
+      row.querySelectorAll("button").forEach(x=>x.disabled=true);
+    });
+    score = c/st.items.length;
+  }
+  if(st.type==="order"){
+    if(R.ans.length < st.items.length){ msg.textContent = "Place every step before checking."; return; }
+    let c=0; R.checked = true;
+    b.innerHTML = orderHTML(st);
+    b.querySelectorAll(".seq .tile").forEach((el,pos)=>{ const good = R.ans[pos]===pos; if(good) c++; el.classList.add(good?"ok":"bad"); });
+    score = c/st.items.length;
+    if(score<1){
+      b.insertAdjacentHTML("beforeend", `<div class="concept" style="margin-top:16px"><b>Correct order</b><ol style="margin:6px 0 0;padding-left:20px">${st.items.map(i=>`<li>${esc(i)}</li>`).join("")}</ol></div>`);
+    }
+  }
+  if(st.type==="quiz"){
+    if(Object.keys(R.ans).length < st.qs.length){ msg.textContent = "Answer every question before checking."; return; }
+    let c=0;
+    st.qs.forEach((q,qi)=>{
+      if(R.ans[qi]===q.a) c++;
+      b.querySelectorAll(`.opt[data-q="${qi}"]`).forEach(el=>{
+        const oi = +el.dataset.o; el.classList.add("locked");
+        if(oi===q.a) el.classList.add(R.ans[qi]===q.a ? "ok" : "miss");
+        else if(oi===R.ans[qi]) el.classList.add("bad");
+      });
+      b.querySelector(`.qz-item[data-q="${qi}"] .qz-why`).hidden = false;
+    });
+    score = c/st.qs.length;
+  }
+  R.checked = true;
+
+  // XP
+  const perfect = score === 1;
+  if(st.type !== "code"){ if(perfect){ S.streak++; S.bestStreak = Math.max(S.bestStreak,S.streak); } else S.streak = 0; }
+  const combo = S.streak >= 3 && perfect;
+  let gain = Math.round(st.xp * score * (combo ? 1.2 : 1)) - (R.hint ? 5 : 0);
+  gain = Math.max(0, gain);
+  const prev = S.best[R.m.id][R.si] || 0;
+  const credited = Math.max(0, gain - prev);
+  S.best[R.m.id][R.si] = Math.max(prev, gain);
+  S.xp += credited; R.earned += gain; R.scores[R.si] = score;
+
+  // badges
+  award("first");
+  if(R.si===0 && perfect) award("clarify");
+  if(S.streak >= 5) award("streak5");
+  if(R.si===4 && perfect && !S.patternPerfect.includes(R.m.id)){ S.patternPerfect.push(R.m.id); if(S.patternPerfect.length>=3) award("pattern"); }
+  if(R.si===5 && perfect && R.m.id==="bms") award("race");
+  save(); renderBar();
+
+  const pct = Math.round(score*100);
+  const cls = st.type==="code" ? "good" : perfect ? "good" : score >= .6 ? "mid" : "low";
+  const title = st.type==="code" ? "Skeleton reviewed." : perfect ? (combo ? "Perfect. Combo bonus applied." : "Perfect.") : score >= .6 ? "Close. Review the highlighted answers." : "Worth another look. Read the explanations below each answer.";
+  const xpLine = credited < gain ? `+${gain} XP (only +${credited} new, since you beat this before)` : `+${gain} XP`;
+  $("#fb").innerHTML = `<div class="fb ${cls} fade" role="status"><span class="big">${st.type==="code" ? "✓" : pct+"%"}</span><div><p class="ttl">${title}</p><p>${xpLine}${R.hint?" · hint used (−5)":""}</p></div></div>`;
+  actions(st);
+}
+
+/* ------------------------------------------------------------------ */
+/*  FINISH                                                             */
+/* ------------------------------------------------------------------ */
+function finish(){
+  const m = R.m;
+  const scored = R.scores.slice(0,6);
+  const pct = Math.round(scored.reduce((a,b)=>a+b,0)/scored.length*100);
+  const stars = pct>=90 ? 3 : pct>=70 ? 2 : 1;
+  const prev = S.done[m.id];
+  S.done[m.id] = {stars: Math.max(stars, prev ? prev.stars : 0), pct: Math.max(pct, prev ? prev.pct : 0)};
+  if(R.hintsUsed===0) award("nohint");
+  if(stars===3) award("flawless");
+  if(MISSIONS.every(x=>S.done[x.id])) award("architect");
+  save(); renderBar();
+  const mi = R.mi, nextI = mi+1 < MISSIONS.length ? mi+1 : null;
+  const weak = scored.map((s,k)=>[s,k]).filter(([s])=>s<1).map(([,k])=>STEPS[k].n);
+  app.innerHTML = `<section class="finish fade">
+    <h1>${esc(m.title)} designed.</h1>
+    <div class="stars" aria-label="${stars} of 3 stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3-stars)}</span></div>
+    <div class="row">
+      <div><b>${pct}%</b>accuracy</div>
+      <div><b>+${R.earned}</b>XP this run</div>
+      <div><b>${levelInfo(S.xp).name}</b>current rank</div>
+    </div>
+    ${weak.length ? `<p style="max-width:60ch;margin:0 auto 20px;color:var(--muted)">To improve: revisit ${weak.join(", ")}. Replays only award XP when you beat your best score on a stage.</p>` : `<p style="margin:0 0 20px;color:var(--muted)">Every step perfect. That's an interview-ready walkthrough.</p>`}
+    ${R.newBadges.length ? `<div class="new-badges">${R.newBadges.map(id=>{const b=BADGES.find(x=>x.id===id);return `<div class="badge"><span class="ic">${b.ic}</span><div><b>${b.n}</b><small>${b.d}</small></div></div>`;}).join("")}</div>` : ""}
+    <div class="acts">
+      ${nextI!==null ? `<button class="btn amber" id="nx">Next mission: ${esc(MISSIONS[nextI].title)}</button>` : ""}
+      <button class="btn ghost" id="rp">Replay this mission</button>
+      <button class="btn ghost" id="hm">Back to missions</button>
+    </div>
+  </section>`;
+  nextI!==null && $("#nx").addEventListener("click",()=>start(nextI));
+  $("#rp").addEventListener("click",()=>start(mi));
+  $("#hm").addEventListener("click",home);
+  R = null;
+  confetti();
+  window.scrollTo(0,0);
+}
+
+function confetti(){
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colors = ["#FFC53D","#E09E00","#4ADE9A","#7FA3CF","#14305C","#FF8A70"];
+  for(let i=0;i<70;i++){
+    const d = document.createElement("div"); d.className="confetti";
+    d.style.left = Math.random()*100+"vw";
+    d.style.background = colors[i%colors.length];
+    d.style.animationDuration = (1.8+Math.random()*1.8)+"s";
+    d.style.animationDelay = (Math.random()*.5)+"s";
+    document.body.appendChild(d); setTimeout(()=>d.remove(), 4500);
+  }
+}
+
+$("#home-btn").addEventListener("click", ()=>{ if(!R || R.si===0 || confirm("Leave this mission? XP already earned is kept.")) home(); });
+home();
+</script>
+</body>
+</html>
